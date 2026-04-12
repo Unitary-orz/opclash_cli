@@ -10,6 +10,8 @@ class ControllerClient:
 
     @property
     def headers(self) -> dict[str, str]:
+        if not self._config.secret:
+            return {}
         return {"Authorization": f"Bearer {self._config.secret}"}
 
     def get_configs(self) -> dict:
