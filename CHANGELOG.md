@@ -11,8 +11,10 @@ All notable changes to this project are documented in this file.
 - Structured JSON output for automation and agent integration
 - Basic contribution and licensing documents
 - Local operation log at `~/.local/state/opclash_cli/operations.jsonl`
+- Local log viewer via `opclash_cli doctor logs`
 
 ### Fixed
 
 - Package discovery for standard `pip install .`
 - Installation and deployment guidance in `README.md`
+- Operation log scope reduced to init and mutation commands

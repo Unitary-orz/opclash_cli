@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 *.pyc
 *.egg-info/
+build/
 .config/
 config.toml
 *.toml.local

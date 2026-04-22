@@ -100,7 +100,7 @@ doctor
 - `subscription update --name <name>`：更新订阅
 - `subscription switch --config <file>`：切换配置
 - `service status | reload | restart | logs`：服务状态与控制
-- `doctor network | runtime | config`：基础诊断
+- `doctor network | runtime | config | logs`：基础诊断与本地操作日志
 
 ## ⚙️ 配置与部署
 
@@ -127,6 +127,7 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 
 - `subscription switch --config` 需要传入远端 OpenClash 主机上的完整配置路径
 - `service logs` 读取的是远端 `/tmp/openclash.log`
+- `doctor logs` 读取的是本地 CLI 操作日志
 
 ## 📄 输出格式
 
@@ -184,6 +185,17 @@ export OPENCLASH_CLI_LOG=/path/to/operations.jsonl
 - `audit`
 - `error`
 - `data`
+
+默认只记录两类操作：
+
+- 初始化相关：`init`、`init check`
+- 修改相关：`nodes switch`、`subscription add/update/switch`、`service reload/restart`
+
+查看本地操作日志：
+
+```bash
+opclash_cli doctor logs --limit 20
+```
 
 ## 📚 文档
 

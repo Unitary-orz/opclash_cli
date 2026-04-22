@@ -3,6 +3,18 @@ import os
 from pathlib import Path
 
 
+_LOGGED_COMMANDS = {
+    "init",
+    "init check",
+    "nodes switch",
+    "subscription add",
+    "subscription update",
+    "subscription switch",
+    "service reload",
+    "service restart",
+}
+
+
 def log_path() -> Path:
     override = os.environ.get("OPENCLASH_CLI_LOG")
     if override:
@@ -22,8 +34,23 @@ def _event(payload: dict) -> dict:
     }
 
 
+def should_log_command(command: str | None) -> bool:
+    return command in _LOGGED_COMMANDS
+
+
 def append_operation(payload: dict) -> None:
+    if not should_log_command(payload.get("command")):
+        return
     path = log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as file:
         file.write(json.dumps(_event(payload), ensure_ascii=False) + "\n")
+
+
+def read_operations(limit: int = 20) -> dict:
+    path = log_path()
+    if not path.exists():
+        return {"items": []}
+
+    items = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return {"items": list(reversed(items[-limit:]))}

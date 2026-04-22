@@ -1,6 +1,7 @@
 import argparse
 
 from opclash_cli.commands.doctor import config as doctor_config
+from opclash_cli.commands.doctor import logs as doctor_logs
 from opclash_cli.commands.doctor import network as doctor_network
 from opclash_cli.commands.doctor import runtime as doctor_runtime
 from opclash_cli.commands.init import show_config, write_config
@@ -80,6 +81,8 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_subparsers.add_parser("network")
     doctor_subparsers.add_parser("runtime")
     doctor_subparsers.add_parser("config")
+    doctor_logs_parser = doctor_subparsers.add_parser("logs")
+    doctor_logs_parser.add_argument("--limit", type=int, default=20)
 
     return parser
 
@@ -216,6 +219,10 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "doctor" and args.doctor_command == "config":
             emit(ok("doctor config", doctor_config()))
+            return 0
+
+        if args.command == "doctor" and args.doctor_command == "logs":
+            emit(ok("doctor logs", doctor_logs(args.limit)))
             return 0
     except CliError as error:
         emit(fail(_command_name(args), error.code, error.message, error.details))

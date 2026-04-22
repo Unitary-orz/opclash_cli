@@ -77,6 +77,21 @@ def test_mutation_commands_do_not_require_reason(capsys, monkeypatch):
         assert payload["ok"] is True
 
 
+def test_doctor_logs_returns_local_operation_log(capsys, monkeypatch):
+    monkeypatch.setattr(
+        "opclash_cli.main.doctor_logs",
+        lambda limit: {"items": [{"command": "init check", "ok": True}], "limit": limit},
+    )
+
+    exit_code = main(["doctor", "logs", "--limit", "5"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["ok"] is True
+    assert payload["command"] == "doctor logs"
+    assert payload["data"] == {"items": [{"command": "init check", "ok": True}], "limit": 5}
+
+
 def test_pyproject_includes_cli_subpackages():
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 

@@ -2,6 +2,7 @@ from opclash_cli.commands.init import check_backends
 from opclash_cli.commands.nodes import groups as nodes_groups, providers as nodes_providers
 from opclash_cli.commands.service import status as service_status
 from opclash_cli.commands.subscription import current_config
+from opclash_cli.operation_log import read_operations
 
 
 def build_network_report(controller_ok: bool, luci_ok: bool, service_ok: bool) -> dict:
@@ -36,3 +37,7 @@ def runtime() -> dict:
 def config() -> dict:
     current = current_config()["config_path"]
     return {"config": {"current_path": current, "backends": check_backends()}}
+
+
+def logs(limit: int = 20) -> dict:
+    return {"logs": read_operations(limit)["items"], "limit": limit}
