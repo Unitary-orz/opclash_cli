@@ -1,10 +1,13 @@
 import argparse
+import sys
 
+from opclash_cli import __version__
 from opclash_cli.commands.doctor import config as doctor_config
 from opclash_cli.commands.doctor import logs as doctor_logs
 from opclash_cli.commands.doctor import network as doctor_network
 from opclash_cli.commands.doctor import runtime as doctor_runtime
-from opclash_cli.commands.init import show_config, write_config
+from opclash_cli.commands.init import check_backends
+from opclash_cli.commands.init import mask_secret, show_config, write_config
 from opclash_cli.commands.init import check_backends
 from opclash_cli.commands.nodes import (
     group as node_group,
@@ -25,15 +28,33 @@ from opclash_cli.commands.subscription import (
     update_subscription,
 )
 from opclash_cli.errors import CliError
-from opclash_cli.local_config import config_exists
+from opclash_cli.local_config import config_exists, config_path
 from opclash_cli.output import emit, fail, ok
+
+
+_MUTATING_COMMANDS = {
+    "init",
+    "nodes switch",
+    "subscription add",
+    "subscription update",
+    "subscription switch",
+    "service reload",
+    "service restart",
+}
+
+
+def _add_mutation_flags(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--yes", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="opclash_cli")
+    parser.add_argument("--version", action="store_true")
     subparsers = parser.add_subparsers(dest="command")
 
     init_parser = subparsers.add_parser("init")
+    _add_mutation_flags(init_parser)
     init_parser.add_argument("--controller-url")
     init_parser.add_argument("--controller-secret")
     init_parser.add_argument("--luci-url")
@@ -54,6 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
     group_parser = nodes_subparsers.add_parser("group")
     group_parser.add_argument("--name", required=True)
     switch_parser = nodes_subparsers.add_parser("switch")
+    _add_mutation_flags(switch_parser)
     switch_parser.add_argument("--group", required=True)
     switch_parser.add_argument("--target", required=True)
 
@@ -62,22 +84,27 @@ def build_parser() -> argparse.ArgumentParser:
     subscription_subparsers.add_parser("list")
     subscription_subparsers.add_parser("current")
     add_parser = subscription_subparsers.add_parser("add")
+    _add_mutation_flags(add_parser)
     add_parser.add_argument("--name", required=True)
     add_parser.add_argument("--url", required=True)
     update_parser = subscription_subparsers.add_parser("update")
+    _add_mutation_flags(update_parser)
     update_target_group = update_parser.add_mutually_exclusive_group()
     update_target_group.add_argument("--name")
     update_target_group.add_argument("--config")
     configs_parser = subscription_subparsers.add_parser("configs")
     configs_parser.add_argument("--directory", default="/etc/openclash/config")
     switch_parser = subscription_subparsers.add_parser("switch")
+    _add_mutation_flags(switch_parser)
     switch_parser.add_argument("--config", required=True)
 
     service_parser = subparsers.add_parser("service")
     service_subparsers = service_parser.add_subparsers(dest="service_command")
     service_subparsers.add_parser("status")
     reload_parser = service_subparsers.add_parser("reload")
+    _add_mutation_flags(reload_parser)
     restart_parser = service_subparsers.add_parser("restart")
+    _add_mutation_flags(restart_parser)
     service_subparsers.add_parser("logs")
 
     init_subparsers.add_parser("check")
@@ -89,6 +116,10 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_subparsers.add_parser("config")
     doctor_logs_parser = doctor_subparsers.add_parser("logs")
     doctor_logs_parser.add_argument("--limit", type=int, default=20)
+
+    subparsers.add_parser("version")
+    completion_parser = subparsers.add_parser("completion")
+    completion_parser.add_argument("shell", choices=["bash", "zsh"])
 
     return parser
 
@@ -104,14 +135,161 @@ def _command_name(args: argparse.Namespace) -> str:
         return f"service {args.service_command}"
     if args.command == "doctor":
         return f"doctor {args.doctor_command}"
+    if args.command == "completion":
+        return "completion"
+    if args.command == "version":
+        return "version"
     return args.command or "unknown"
+
+
+def _stdin_isatty() -> bool:
+    return sys.stdin.isatty()
+
+
+def _version_payload() -> dict:
+    return {
+        "version": __version__,
+        "python": sys.version.split()[0],
+        "config_path": str(config_path()),
+    }
+
+
+def _completion_script(shell: str) -> str:
+    if shell == "bash":
+        return """_opclash_cli_complete() {
+  local cur prev words cword
+  _init_completion || return
+  case "${COMP_WORDS[1]}" in
+    nodes)
+      COMPREPLY=( $(compgen -W "groups providers group switch speedtest" -- "$cur") )
+      ;;
+    subscription)
+      COMPREPLY=( $(compgen -W "list current add update configs switch" -- "$cur") )
+      ;;
+    service)
+      COMPREPLY=( $(compgen -W "status reload restart logs" -- "$cur") )
+      ;;
+    doctor)
+      COMPREPLY=( $(compgen -W "network runtime config logs" -- "$cur") )
+      ;;
+    completion)
+      COMPREPLY=( $(compgen -W "bash zsh" -- "$cur") )
+      ;;
+    *)
+      COMPREPLY=( $(compgen -W "init nodes subscription service doctor version completion" -- "$cur") )
+      ;;
+  esac
+}
+complete -F _opclash_cli_complete opclash_cli
+"""
+    return """#compdef opclash_cli
+
+_opclash_cli() {
+  local -a commands
+  commands=(
+    'init:initialize local config'
+    'nodes:node operations'
+    'subscription:subscription operations'
+    'service:service operations'
+    'doctor:diagnostics'
+    'version:show version'
+    'completion:generate shell completion'
+  )
+  _arguments '1:command:->command' '*::arg:->args'
+  case $state in
+    command)
+      _describe 'command' commands
+      ;;
+    args)
+      case $words[2] in
+        nodes)
+          _values 'nodes commands' groups providers group switch speedtest
+          ;;
+        subscription)
+          _values 'subscription commands' list current add update configs switch
+          ;;
+        service)
+          _values 'service commands' status reload restart logs
+          ;;
+        doctor)
+          _values 'doctor commands' network runtime config logs
+          ;;
+        completion)
+          _values 'shell' bash zsh
+          ;;
+      esac
+      ;;
+  esac
+}
+
+_opclash_cli "$@"
+"""
+
+
+def _dry_run_payload(args: argparse.Namespace) -> dict:
+    command = _command_name(args)
+    if command == "init":
+        params = {
+            "controller_url": args.controller_url,
+            "controller_secret": mask_secret(args.controller_secret or ""),
+            "luci_url": args.luci_url,
+            "luci_username": args.luci_username,
+            "luci_password": mask_secret(args.luci_password or ""),
+            "config_path": str(config_path()),
+        }
+    elif command == "nodes switch":
+        params = {"group": args.group, "target": args.target}
+    elif command == "subscription add":
+        params = {"name": args.name, "url": args.url}
+    elif command == "subscription update":
+        params = {"name": args.name, "config": args.config}
+    elif command == "subscription switch":
+        params = {"config": args.config}
+    else:
+        params = {}
+    return {"dry_run": True, "command": command, "params": params}
+
+
+def _should_confirm(args: argparse.Namespace) -> bool:
+    command = _command_name(args)
+    return command in _MUTATING_COMMANDS and not getattr(args, "yes", False) and not getattr(args, "dry_run", False) and _stdin_isatty()
+
+
+def _confirm_or_abort(args: argparse.Namespace) -> int | None:
+    command = _command_name(args)
+    answer = input(f"Confirm {command}? [y/N]: ").strip().lower()
+    if answer not in {"y", "yes"}:
+        emit(fail(command, "CONFIRM_ABORTED", "Operation was cancelled"))
+        return 1
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    if args.version:
+        print(f"opclash_cli {__version__}")
+        return 0
+
     try:
+        if args.command == "version":
+            emit(ok("version", _version_payload()))
+            return 0
+
+        if args.command == "completion":
+            print(_completion_script(args.shell))
+            return 0
+
+        if getattr(args, "dry_run", False) and _command_name(args) in _MUTATING_COMMANDS:
+            emit(ok(_command_name(args), _dry_run_payload(args)))
+            return 0
+
+        if _should_confirm(args):
+            aborted = _confirm_or_abort(args)
+            if aborted is not None:
+                return aborted
+
         if args.command == "init" and args.init_command is None:
             emit(
                 ok(

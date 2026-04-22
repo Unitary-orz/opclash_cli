@@ -83,6 +83,8 @@ nodes
 subscription
 service
 doctor
+version
+completion
 ```
 
 常用子命令：
@@ -102,6 +104,8 @@ doctor
 - `subscription switch --config <file>`：切换配置
 - `service status | reload | restart | logs`：服务状态与控制
 - `doctor network | runtime | config | logs`：基础诊断与本地操作日志
+- `version` / `--version`：查看版本信息
+- `completion bash|zsh`：生成 shell completion 脚本
 
 ## ⚙️ 配置与部署
 
@@ -202,6 +206,23 @@ opclash_cli doctor logs --limit 20
 
 ```bash
 opclash_cli nodes speedtest --group Apple --limit 10
+```
+
+安全确认与 dry-run：
+
+```bash
+opclash_cli service restart
+opclash_cli service restart --yes
+opclash_cli subscription switch --config /etc/openclash/config/example.yaml --dry-run
+```
+
+版本与 completion：
+
+```bash
+opclash_cli version
+opclash_cli --version
+opclash_cli completion bash
+opclash_cli completion zsh
 ```
 
 ## 📚 文档
