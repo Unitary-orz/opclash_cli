@@ -12,6 +12,11 @@ dependencies = [
   "tomli-w>=1.0.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=9.0.0",
+]
+
 [project.scripts]
 opclash_cli = "opclash_cli.main:main"
 

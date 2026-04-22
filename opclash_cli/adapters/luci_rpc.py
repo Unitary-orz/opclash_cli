@@ -20,12 +20,13 @@ class ConfigFileEntry:
 
 
 class _OpenWrtLocalBackend:
-    def run(self, command: list[str]) -> str:
+    def run(self, command: list[str], timeout: int | None = None) -> str:
         completed = subprocess.run(
             command,
             check=True,
             capture_output=True,
             text=True,
+            timeout=timeout,
         )
         return completed.stdout
 
@@ -46,8 +47,8 @@ class _OpenWrtLocalBackend:
                 payload.setdefault(section_and_option, {})[".type"] = raw_value.strip("'")
         return payload
 
-    def service_exec(self, command: str) -> str:
-        return self.run(["/bin/sh", "-c", command])
+    def service_exec(self, command: str, timeout: int | None = None) -> str:
+        return self.run(["/bin/sh", "-c", command], timeout=timeout)
 
     def add_uci_section(self, config_name: str, section_type: str) -> str:
         return self.run(["uci", "add", config_name, section_type]).strip()
@@ -81,6 +82,12 @@ class _OpenWrtLocalBackend:
             )
         return entries
 
+    def update_subscription(self, target: str | None = None) -> str:
+        command = ["/usr/share/openclash/openclash.sh"]
+        if target:
+            command.append(target)
+        return self.run(command, timeout=300)
+
 
 class _LuciJsonRpcBackend:
     def __init__(self, url: str, username: str, password: str, session: requests.Session | None = None) -> None:
@@ -100,12 +107,12 @@ class _LuciJsonRpcBackend:
         self._token = response.json()["result"]
         return self._token
 
-    def call(self, library: str, method: str, params: list[object]) -> object:
+    def call(self, library: str, method: str, params: list[object], timeout: int = 10) -> object:
         token = self._token or self.login()
         response = self._session.post(
             f"{self._url}/{library}?auth={token}",
             json={"id": 1, "method": method, "params": params},
-            timeout=10,
+            timeout=timeout,
         )
         response.raise_for_status()
         return response.json()["result"]
@@ -113,8 +120,8 @@ class _LuciJsonRpcBackend:
     def get_openclash_uci(self) -> dict:
         return self.call("uci", "get_all", ["openclash"])
 
-    def service_exec(self, command: str) -> str:
-        return self.call("sys", "exec", [command])
+    def service_exec(self, command: str, timeout: int = 10) -> str:
+        return self.call("sys", "exec", [command], timeout=timeout)
 
     def add_uci_section(self, config_name: str, section_type: str) -> str:
         return self.call("uci", "add", [config_name, section_type])
@@ -151,6 +158,12 @@ class _LuciJsonRpcBackend:
             )
         return entries
 
+    def update_subscription(self, target: str | None = None) -> str:
+        command = "/usr/share/openclash/openclash.sh"
+        if target:
+            command = f"{command} {shlex.quote(target)}"
+        return self.service_exec(command, timeout=300)
+
 
 class LuciRpcClient:
     def __init__(self, session: requests.Session | None = None) -> None:
@@ -166,8 +179,8 @@ class LuciRpcClient:
     def get_openclash_uci(self) -> dict:
         return self._backend.get_openclash_uci()
 
-    def service_exec(self, command: str) -> str:
-        return self._backend.service_exec(command)
+    def service_exec(self, command: str, timeout: int = 10) -> str:
+        return self._backend.service_exec(command, timeout=timeout)
 
     def add_uci_section(self, config_name: str, section_type: str) -> str:
         return self._backend.add_uci_section(config_name, section_type)
@@ -183,3 +196,6 @@ class LuciRpcClient:
 
     def list_config_files(self, directory: str) -> list[ConfigFileEntry]:
         return self._backend.list_config_files(directory)
+
+    def update_subscription(self, target: str | None = None) -> str:
+        return self._backend.update_subscription(target)

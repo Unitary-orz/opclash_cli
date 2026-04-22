@@ -20,6 +20,7 @@ from opclash_cli.commands.subscription import (
     current_config,
     list_subscriptions,
     switch_config,
+    update_subscription,
 )
 from opclash_cli.errors import CliError
 from opclash_cli.local_config import config_exists
@@ -58,6 +59,11 @@ def build_parser() -> argparse.ArgumentParser:
     add_parser.add_argument("--name", required=True)
     add_parser.add_argument("--url", required=True)
     add_parser.add_argument("--reason", required=True)
+    update_parser = subscription_subparsers.add_parser("update")
+    update_target_group = update_parser.add_mutually_exclusive_group()
+    update_target_group.add_argument("--name")
+    update_target_group.add_argument("--config")
+    update_parser.add_argument("--reason", required=True)
     configs_parser = subscription_subparsers.add_parser("configs")
     configs_parser.add_argument("--directory", default="/etc/openclash/config")
     switch_parser = subscription_subparsers.add_parser("switch")
@@ -163,6 +169,24 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "subscription" and args.subscription_command == "add":
             result = add_subscription(args.name, args.url, args.reason)
             emit(ok("subscription add", {"subscription": result["subscription"]}, audit=result["audit"]))
+            return 0
+
+        if args.command == "subscription" and args.subscription_command == "update":
+            result = update_subscription(args.name, args.config, args.reason)
+            emit(
+                ok(
+                    "subscription update",
+                    {
+                        "target": result["target"],
+                        "items": result["items"],
+                        "summary": result["summary"],
+                        "before": result["before"],
+                        "after": result["after"],
+                        "suggested_commands": result["suggested_commands"],
+                    },
+                    audit=result["audit"],
+                )
+            )
             return 0
 
         if args.command == "subscription" and args.subscription_command == "switch":
