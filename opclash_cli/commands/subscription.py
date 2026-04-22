@@ -178,7 +178,7 @@ def find_subscription(payload: dict, name: str) -> dict:
     raise CliError("SUBSCRIPTION_NOT_FOUND", f"Subscription '{name}' was not found")
 
 
-def add_subscription(name: str, url: str, reason: str) -> dict:
+def add_subscription(name: str, url: str) -> dict:
     client = LuciRpcClient()
     section = client.add_uci_section("openclash", "config_subscribe")
     payload = add_subscription_payload(name, url)
@@ -187,11 +187,11 @@ def add_subscription(name: str, url: str, reason: str) -> dict:
     client.commit_uci("openclash")
     return {
         "subscription": {"section": section, **payload},
-        "audit": {"action": "subscription.add", "reason": reason},
+        "audit": None,
     }
 
 
-def update_subscription(name: str | None, config: str | None, reason: str) -> dict:
+def update_subscription(name: str | None, config: str | None) -> dict:
     client = LuciRpcClient()
     payload = client.get_openclash_uci()
     target: str | None = None
@@ -263,11 +263,11 @@ def update_subscription(name: str | None, config: str | None, reason: str) -> di
         "before": before,
         "after": {"config_path": refreshed["config"]["config_path"]},
         "suggested_commands": _suggested_commands(summary, target_details),
-        "audit": {"action": "subscription.update", "reason": reason},
+        "audit": None,
     }
 
 
-def switch_config(path: str, reason: str) -> dict:
+def switch_config(path: str) -> dict:
     client = LuciRpcClient()
     config_paths = {entry.path for entry in client.list_config_files(str(Path(path).parent))}
     if path not in config_paths:
@@ -289,7 +289,7 @@ def switch_config(path: str, reason: str) -> dict:
     return {
         "before": {"config_path": current},
         "after": {"config_path": refreshed},
-        "audit": {"action": "subscription.switch", "reason": reason},
+        "audit": None,
     }
 
 

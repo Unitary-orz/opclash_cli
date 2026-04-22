@@ -53,8 +53,8 @@ def switch_group(client: ControllerClient, group_name: str, target: str) -> dict
     return {"before": before, "after": after}
 
 
-def switch(group_name: str, target: str, reason: str) -> dict:
+def switch(group_name: str, target: str) -> dict:
     client = ControllerClient()
     result = switch_group(client, group_name, target)
-    result["audit"] = {"action": "nodes.switch", "reason": reason}
+    result["audit"] = None
     return result

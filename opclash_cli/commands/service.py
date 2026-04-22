@@ -10,14 +10,14 @@ def status() -> dict:
     return {"service": summarize_status(raw)}
 
 
-def reload(reason: str) -> dict:
+def reload() -> dict:
     raw = LuciRpcClient().service_exec("/etc/init.d/openclash reload")
-    return {"result": raw.strip(), "audit": {"action": "service.reload", "reason": reason}}
+    return {"result": raw.strip(), "audit": None}
 
 
-def restart(reason: str) -> dict:
+def restart() -> dict:
     raw = LuciRpcClient().service_exec("/etc/init.d/openclash restart")
-    return {"result": raw.strip(), "audit": {"action": "service.restart", "reason": reason}}
+    return {"result": raw.strip(), "audit": None}
 
 
 def logs() -> dict:

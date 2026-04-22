@@ -59,7 +59,7 @@ def test_switch_config_rejects_missing_target(monkeypatch):
     monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
 
     try:
-        subscription_commands.switch_config("/etc/openclash/config/missing.yaml", "test")
+        subscription_commands.switch_config("/etc/openclash/config/missing.yaml")
         raise AssertionError("expected CliError")
     except CliError as error:
         assert error.code == "CONFIG_NOT_FOUND"
@@ -143,7 +143,7 @@ def test_update_subscription_without_target_updates_all(monkeypatch):
     fake_client = FakeUpdateLuciRpcClient()
     monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
 
-    result = subscription_commands.update_subscription(None, None, "refresh all")
+    result = subscription_commands.update_subscription(None, None)
 
     assert fake_client.update_target is None
     assert result["target"] == {"mode": "all"}
@@ -172,14 +172,14 @@ def test_update_subscription_without_target_updates_all(monkeypatch):
             "purpose": "确认失败项对应的订阅名称和地址",
         },
     ]
-    assert result["audit"]["action"] == "subscription.update"
+    assert result["audit"] is None
 
 
 def test_update_subscription_by_name_targets_single_subscription(monkeypatch):
     fake_client = FakeUpdateLuciRpcClient()
     monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
 
-    result = subscription_commands.update_subscription("west2", None, "refresh one")
+    result = subscription_commands.update_subscription("west2", None)
 
     assert fake_client.update_target == "west2"
     assert result["target"] == {"mode": "single", "name": "west2", "section": "@config_subscribe[0]"}
@@ -211,7 +211,40 @@ def test_update_subscription_rejects_missing_subscription_name(monkeypatch):
     monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
 
     try:
-        subscription_commands.update_subscription("missing", None, "refresh one")
+        subscription_commands.update_subscription("missing", None)
         raise AssertionError("expected CliError")
     except CliError as error:
         assert error.code == "SUBSCRIPTION_NOT_FOUND"
+
+
+def test_add_subscription_omits_audit(monkeypatch):
+    class FakeAddLuciRpcClient:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def add_uci_section(self, config_name: str, section_type: str) -> str:
+            self.calls.append(("add_uci_section", config_name, section_type))
+            return "@config_subscribe[4]"
+
+        def set_uci(self, config_name: str, section: str, option: str, value: str) -> bool:
+            self.calls.append(("set_uci", config_name, section, option, value))
+            return True
+
+        def commit_uci(self, config_name: str) -> bool:
+            self.calls.append(("commit_uci", config_name))
+            return True
+
+    fake_client = FakeAddLuciRpcClient()
+    monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
+
+    result = subscription_commands.add_subscription("west2", "https://example/sub")
+
+    assert result == {
+        "subscription": {
+            "section": "@config_subscribe[4]",
+            "name": "west2",
+            "address": "https://example/sub",
+            "enabled": "1",
+        },
+        "audit": None,
+    }

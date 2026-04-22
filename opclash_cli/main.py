@@ -49,7 +49,6 @@ def build_parser() -> argparse.ArgumentParser:
     switch_parser = nodes_subparsers.add_parser("switch")
     switch_parser.add_argument("--group", required=True)
     switch_parser.add_argument("--target", required=True)
-    switch_parser.add_argument("--reason", required=True)
 
     subscription_parser = subparsers.add_parser("subscription")
     subscription_subparsers = subscription_parser.add_subparsers(dest="subscription_command")
@@ -58,25 +57,20 @@ def build_parser() -> argparse.ArgumentParser:
     add_parser = subscription_subparsers.add_parser("add")
     add_parser.add_argument("--name", required=True)
     add_parser.add_argument("--url", required=True)
-    add_parser.add_argument("--reason", required=True)
     update_parser = subscription_subparsers.add_parser("update")
     update_target_group = update_parser.add_mutually_exclusive_group()
     update_target_group.add_argument("--name")
     update_target_group.add_argument("--config")
-    update_parser.add_argument("--reason", required=True)
     configs_parser = subscription_subparsers.add_parser("configs")
     configs_parser.add_argument("--directory", default="/etc/openclash/config")
     switch_parser = subscription_subparsers.add_parser("switch")
     switch_parser.add_argument("--config", required=True)
-    switch_parser.add_argument("--reason", required=True)
 
     service_parser = subparsers.add_parser("service")
     service_subparsers = service_parser.add_subparsers(dest="service_command")
     service_subparsers.add_parser("status")
     reload_parser = service_subparsers.add_parser("reload")
-    reload_parser.add_argument("--reason", required=True)
     restart_parser = service_subparsers.add_parser("restart")
-    restart_parser.add_argument("--reason", required=True)
     service_subparsers.add_parser("logs")
 
     init_subparsers.add_parser("check")
@@ -148,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "nodes" and args.nodes_command == "switch":
-            result = switch_node(args.group, args.target, args.reason)
+            result = switch_node(args.group, args.target)
             emit(ok("nodes switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
             return 0
 
@@ -167,12 +161,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "subscription" and args.subscription_command == "add":
-            result = add_subscription(args.name, args.url, args.reason)
+            result = add_subscription(args.name, args.url)
             emit(ok("subscription add", {"subscription": result["subscription"]}, audit=result["audit"]))
             return 0
 
         if args.command == "subscription" and args.subscription_command == "update":
-            result = update_subscription(args.name, args.config, args.reason)
+            result = update_subscription(args.name, args.config)
             emit(
                 ok(
                     "subscription update",
@@ -190,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "subscription" and args.subscription_command == "switch":
-            result = switch_config(args.config, args.reason)
+            result = switch_config(args.config)
             emit(ok("subscription switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
             return 0
 
@@ -199,12 +193,12 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "service" and args.service_command == "reload":
-            result = service_reload(args.reason)
+            result = service_reload()
             emit(ok("service reload", {"result": result["result"]}, audit=result["audit"]))
             return 0
 
         if args.command == "service" and args.service_command == "restart":
-            result = service_restart(args.reason)
+            result = service_restart()
             emit(ok("service restart", {"result": result["result"]}, audit=result["audit"]))
             return 0
 
