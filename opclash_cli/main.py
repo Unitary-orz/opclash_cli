@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from opclash_cli import __version__
+from opclash_cli import __brand__, __brand_banner__, __version__
 from opclash_cli.commands.doctor import config as doctor_config
 from opclash_cli.commands.doctor import logs as doctor_logs
 from opclash_cli.commands.doctor import network as doctor_network
@@ -148,10 +148,15 @@ def _stdin_isatty() -> bool:
 
 def _version_payload() -> dict:
     return {
+        "brand": __brand__,
         "version": __version__,
         "python": sys.version.split()[0],
         "config_path": str(config_path()),
     }
+
+
+def _plain_version_banner() -> str:
+    return f" /\\_/\\\\\n( o.o )  opclash_cli {__version__}\n > ^ <"
 
 
 def _completion_script(shell: str) -> str:
@@ -269,7 +274,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.version:
-        print(f"opclash_cli {__version__}")
+        print(_plain_version_banner())
         return 0
 
     try:

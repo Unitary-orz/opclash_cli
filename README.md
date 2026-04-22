@@ -1,4 +1,8 @@
-# opclash_cli
+```text
+ /\_/\\
+( o.o )  opclash_cli
+ > ^ <
+```
 
 > 🧭 AI-native OpenClash 远程管理命令行工具
 
@@ -107,7 +111,24 @@ completion
 - `version` / `--version`：查看版本信息
 - `completion bash|zsh`：生成 shell completion 脚本
 
-## ⚙️ 配置与部署
+## 📋 子命令速览
+
+| 领域 | 子命令 | 用途 | 常见示例 |
+| --- | --- | --- | --- |
+| 初始化 | `init` | 写入或检查本地连接配置 | `opclash_cli init check` |
+| 节点 | `nodes groups` | 查看所有节点组 | `opclash_cli nodes groups` |
+| 节点 | `nodes group` | 查看指定组详情 | `opclash_cli nodes group --name HK` |
+| 节点 | `nodes switch` | 切换组内节点 | `opclash_cli nodes switch --group Apple --target DIRECT` |
+| 节点 | `nodes speedtest` | 调用 Clash 自带测速并排序 | `opclash_cli nodes speedtest --group HK --limit 10` |
+| 订阅 | `subscription list` | 查看订阅列表 | `opclash_cli subscription list` |
+| 订阅 | `subscription update` | 更新订阅 | `opclash_cli subscription update --name west2` |
+| 订阅 | `subscription switch` | 切换远端配置文件 | `opclash_cli subscription switch --config /etc/openclash/config/example.yaml` |
+| 服务 | `service status` | 查看 OpenClash 服务状态 | `opclash_cli service status` |
+| 服务 | `service reload/restart` | 重载或重启服务 | `opclash_cli service restart --yes` |
+| 诊断 | `doctor` | 执行基础诊断与日志查看 | `opclash_cli doctor logs --limit 20` |
+| 通用 | `version` / `completion` | 查看版本或生成补全脚本 | `opclash_cli completion bash` |
+
+## ⚙️ 配置
 
 本地配置文件默认写入：
 
@@ -205,7 +226,7 @@ opclash_cli doctor logs --limit 20
 节点测速示例：
 
 ```bash
-opclash_cli nodes speedtest --group Apple --limit 10
+opclash_cli nodes speedtest --group HK --limit 10
 ```
 
 安全确认与 dry-run：
@@ -225,15 +246,23 @@ opclash_cli completion bash
 opclash_cli completion zsh
 ```
 
+## 🤝 支持
+
+- 使用问题：见 [SUPPORT.md](./SUPPORT.md)
+- 安全问题：见 [SECURITY.md](./SECURITY.md)
+- 贡献代码：见 [CONTRIBUTING.md](./CONTRIBUTING.md)
+
 ## 📚 文档
 
 - [变更记录](./CHANGELOG.md)
 - [贡献指南](./CONTRIBUTING.md)
+- [支持说明](./SUPPORT.md)
+- [安全说明](./SECURITY.md)
 - [许可证](./LICENSE)
 
 ## 🗺️ 版本
 
-- `v0.1.0`：首个正式定义版本，完成核心 CLI 骨架与基础命令集
+- `v0.2.0`
 
 ## 📜 许可
 
