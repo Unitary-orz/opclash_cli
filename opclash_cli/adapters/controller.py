@@ -35,4 +35,6 @@ class ControllerClient:
             timeout=10,
         )
         response.raise_for_status()
+        if response.status_code == 204 or not getattr(response, "text", ""):
+            return {}
         return response.json()

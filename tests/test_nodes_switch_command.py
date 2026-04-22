@@ -1,4 +1,5 @@
 from opclash_cli.commands.nodes import build_group_detail, switch_group
+from opclash_cli.adapters.controller import ControllerClient
 
 
 class FakeControllerClient:
@@ -39,3 +40,37 @@ def test_switch_group_returns_before_after():
     assert result["before"]["selected"] == "HK-01"
     assert result["after"]["selected"] == "DIRECT"
     assert client.last_switch == ("Apple", "DIRECT")
+
+
+class FakePutResponse:
+    def __init__(self, status_code: int, payload: dict | None = None) -> None:
+        self.status_code = status_code
+        self._payload = payload
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> dict:
+        if self._payload is None:
+            raise AssertionError("json() should not be called for empty responses")
+        return self._payload
+
+
+class FakePutSession:
+    def __init__(self, response: FakePutResponse) -> None:
+        self.response = response
+
+    def put(self, url: str, headers: dict[str, str], json: dict[str, str], timeout: int) -> FakePutResponse:
+        return self.response
+
+
+def test_switch_proxy_accepts_204_without_json(monkeypatch):
+    monkeypatch.setattr(
+        "opclash_cli.adapters.controller.load_config",
+        lambda: type("Config", (), {"controller": type("Controller", (), {"url": "http://127.0.0.1:9090", "secret": "s"})()})(),
+    )
+    client = ControllerClient(session=FakePutSession(FakePutResponse(204)))
+
+    result = client.switch_proxy("Apple", "DIRECT")
+
+    assert result == {}
