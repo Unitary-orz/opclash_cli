@@ -92,6 +92,41 @@ def test_doctor_logs_returns_local_operation_log(capsys, monkeypatch):
     assert payload["data"] == {"items": [{"command": "init check", "ok": True}], "limit": 5}
 
 
+def test_nodes_speedtest_returns_sorted_results(capsys, monkeypatch):
+    monkeypatch.setattr(
+        "opclash_cli.main.nodes_speedtest",
+        lambda group, limit, test_url, timeout: {
+            "tested": 2,
+            "ok": 2,
+            "results": [
+                {"name": "JP-01", "delay_ms": 70},
+                {"name": "HK-01", "delay_ms": 90},
+            ],
+        },
+    )
+
+    exit_code = main(
+        [
+            "nodes",
+            "speedtest",
+            "--group",
+            "Apple",
+            "--limit",
+            "2",
+            "--url",
+            "https://www.gstatic.com/generate_204",
+            "--timeout",
+            "5000",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["ok"] is True
+    assert payload["command"] == "nodes speedtest"
+    assert payload["data"]["results"][0] == {"name": "JP-01", "delay_ms": 70}
+
+
 def test_pyproject_includes_cli_subpackages():
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
 

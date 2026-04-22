@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from opclash_cli.adapters.controller import ControllerClient
 from opclash_cli.errors import CliError
 
@@ -22,6 +24,32 @@ def summarize_providers(payload: dict) -> list[dict]:
             }
         )
     return result
+
+
+def _is_real_proxy(item: dict) -> bool:
+    name = item.get("name", "")
+    if not name:
+        return False
+    if "all" in item:
+        return False
+    if item.get("type") in {"Direct", "Reject"}:
+        return False
+    if name.startswith(("Traffic:", "Expire:")):
+        return False
+    return True
+
+
+def _real_proxy_names(payload: dict) -> list[str]:
+    names: list[str] = []
+    seen: set[str] = set()
+    for provider in payload.get("providers", {}).values():
+        for item in provider.get("proxies", []):
+            name = item.get("name")
+            if name in seen or not _is_real_proxy(item):
+                continue
+            seen.add(name)
+            names.append(name)
+    return names
 
 
 def groups() -> dict:
@@ -58,3 +86,42 @@ def switch(group_name: str, target: str) -> dict:
     result = switch_group(client, group_name, target)
     result["audit"] = None
     return result
+
+
+def speedtest(group_name: str | None, limit: int, test_url: str, timeout_ms: int) -> dict:
+    client = ControllerClient()
+    providers = client.get_providers()
+    candidates = _real_proxy_names(providers)
+
+    if group_name is not None:
+        payload = client.get_proxies()
+        group_detail = build_group_detail(payload, group_name)
+        candidate_set = set(candidates)
+        candidates = [name for name in group_detail["choices"] if name in candidate_set]
+
+    def _run(name: str) -> dict | None:
+        try:
+            result = client.proxy_delay(name, test_url, timeout_ms)
+        except Exception:
+            return None
+        if result is None:
+            return None
+        delay = result.get("delay")
+        if not isinstance(delay, int) or delay <= 0:
+            return None
+        return {"name": name, "delay_ms": delay}
+
+    results: list[dict] = []
+    with ThreadPoolExecutor(max_workers=12) as executor:
+        futures = [executor.submit(_run, name) for name in candidates]
+        for future in as_completed(futures):
+            item = future.result()
+            if item is not None:
+                results.append(item)
+
+    results.sort(key=lambda item: item["delay_ms"])
+    return {
+        "tested": len(candidates),
+        "ok": len(results),
+        "results": results[:limit],
+    }

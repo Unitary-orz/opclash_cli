@@ -10,6 +10,7 @@ from opclash_cli.commands.nodes import (
     group as node_group,
     groups as nodes_groups,
     providers as nodes_providers,
+    speedtest as nodes_speedtest,
     switch as switch_node,
 )
 from opclash_cli.commands.service import logs as service_logs
@@ -45,6 +46,11 @@ def build_parser() -> argparse.ArgumentParser:
     nodes_subparsers = nodes_parser.add_subparsers(dest="nodes_command")
     nodes_subparsers.add_parser("groups")
     nodes_subparsers.add_parser("providers")
+    speedtest_parser = nodes_subparsers.add_parser("speedtest")
+    speedtest_parser.add_argument("--group")
+    speedtest_parser.add_argument("--limit", type=int, default=10)
+    speedtest_parser.add_argument("--url", default="https://www.gstatic.com/generate_204")
+    speedtest_parser.add_argument("--timeout", type=int, default=5000)
     group_parser = nodes_subparsers.add_parser("group")
     group_parser.add_argument("--name", required=True)
     switch_parser = nodes_subparsers.add_parser("switch")
@@ -142,6 +148,10 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "nodes" and args.nodes_command == "group":
             emit(ok("nodes group", node_group(args.name)))
+            return 0
+
+        if args.command == "nodes" and args.nodes_command == "speedtest":
+            emit(ok("nodes speedtest", nodes_speedtest(args.group, args.limit, args.url, args.timeout)))
             return 0
 
         if args.command == "nodes" and args.nodes_command == "switch":

@@ -93,6 +93,7 @@ doctor
 - `nodes group --name <group>`：查看指定节点组
 - `nodes providers`：列出 provider
 - `nodes switch --group <group> --target <node>`：切换节点
+- `nodes speedtest [--group <group>] [--limit <n>]`：调用 Clash 自带测速并按延迟排序
 - `subscription list`：列出订阅
 - `subscription current`：查看当前配置
 - `subscription configs`：列出配置文件
@@ -195,6 +196,12 @@ export OPENCLASH_CLI_LOG=/path/to/operations.jsonl
 
 ```bash
 opclash_cli doctor logs --limit 20
+```
+
+节点测速示例：
+
+```bash
+opclash_cli nodes speedtest --group Apple --limit 10
 ```
 
 ## 📚 文档

@@ -1,4 +1,5 @@
 import requests
+from urllib.parse import quote
 
 from opclash_cli.local_config import load_config
 
@@ -37,4 +38,14 @@ class ControllerClient:
         response.raise_for_status()
         if response.status_code == 204 or not getattr(response, "text", ""):
             return {}
+        return response.json()
+
+    def proxy_delay(self, name: str, test_url: str, timeout_ms: int) -> dict:
+        response = self._session.get(
+            f"{self._config.url}/proxies/{quote(name, safe='')}/delay",
+            headers=self.headers,
+            params={"url": test_url, "timeout": timeout_ms},
+            timeout=10,
+        )
+        response.raise_for_status()
         return response.json()
