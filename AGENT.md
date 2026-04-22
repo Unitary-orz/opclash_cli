@@ -20,6 +20,7 @@ The codebase is intentionally small and command-oriented:
 - Preserve structured output shapes unless the task explicitly requires a breaking change.
 - Add or update tests when changing command behavior, parsing, or output contracts.
 - When touching remote-control actions like `switch`, `reload`, or `restart`, keep audit and reason fields intact.
+- When editing docs, prefer coherent section rewrites over patch-style append-only changes.
 
 ## Local Commands
 

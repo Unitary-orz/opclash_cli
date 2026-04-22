@@ -248,3 +248,134 @@ def test_add_subscription_omits_audit(monkeypatch):
         },
         "audit": None,
     }
+
+
+class FakeManageLuciRpcClient:
+    def __init__(self) -> None:
+        self.set_calls = []
+        self.delete_calls = []
+        self.commit_calls = []
+
+    def get_openclash_uci(self) -> dict:
+        return {
+            "config": {"config_path": "/etc/openclash/config/current.yaml"},
+            "@config_subscribe[0]": {
+                ".type": "config_subscribe",
+                "name": "west2",
+                "address": "https://example/sub",
+                "enabled": "1",
+            },
+            "@config_subscribe[1]": {
+                ".type": "config_subscribe",
+                "name": "backup",
+                "address": "https://example/backup",
+                "enabled": "0",
+            },
+        }
+
+    def set_uci(self, config_name: str, section: str, option: str, value: str) -> bool:
+        self.set_calls.append((config_name, section, option, value))
+        return True
+
+    def delete_uci_section(self, config_name: str, section: str) -> bool:
+        self.delete_calls.append((config_name, section))
+        return True
+
+    def commit_uci(self, config_name: str) -> bool:
+        self.commit_calls.append(config_name)
+        return True
+
+
+def test_remove_subscription_archives_and_deletes_section(monkeypatch, tmp_path):
+    fake_client = FakeManageLuciRpcClient()
+    monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
+    monkeypatch.setenv("OPENCLASH_CLI_SUBSCRIPTION_ARCHIVE", str(tmp_path / "subscription-archive.jsonl"))
+
+    result = subscription_commands.remove_subscription("west2")
+
+    assert fake_client.delete_calls == [("openclash", "@config_subscribe[0]")]
+    assert fake_client.commit_calls == ["openclash"]
+    assert result["removed"] == {
+        "section": "@config_subscribe[0]",
+        "name": "west2",
+        "address": "https://example/sub",
+        "enabled": True,
+    }
+    assert result["archive"]["path"] == str(tmp_path / "subscription-archive.jsonl")
+    assert result["audit"] is None
+    lines = (tmp_path / "subscription-archive.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 1
+    assert '"action": "remove"' in lines[0]
+    assert '"name": "west2"' in lines[0]
+
+
+def test_enable_subscription_sets_enabled_flag(monkeypatch):
+    fake_client = FakeManageLuciRpcClient()
+    monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
+
+    result = subscription_commands.enable_subscription("backup")
+
+    assert fake_client.set_calls == [("openclash", "@config_subscribe[1]", "enabled", "1")]
+    assert fake_client.commit_calls == ["openclash"]
+    assert result == {
+        "before": {
+            "section": "@config_subscribe[1]",
+            "name": "backup",
+            "address": "https://example/backup",
+            "enabled": False,
+        },
+        "after": {
+            "section": "@config_subscribe[1]",
+            "name": "backup",
+            "address": "https://example/backup",
+            "enabled": True,
+        },
+        "audit": None,
+    }
+
+
+def test_disable_subscription_sets_enabled_flag(monkeypatch):
+    fake_client = FakeManageLuciRpcClient()
+    monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
+
+    result = subscription_commands.disable_subscription("west2")
+
+    assert fake_client.set_calls == [("openclash", "@config_subscribe[0]", "enabled", "0")]
+    assert fake_client.commit_calls == ["openclash"]
+    assert result["after"]["enabled"] is False
+
+
+def test_rename_subscription_updates_name(monkeypatch):
+    fake_client = FakeManageLuciRpcClient()
+    monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
+
+    result = subscription_commands.rename_subscription("west2", "west2-main")
+
+    assert fake_client.set_calls == [("openclash", "@config_subscribe[0]", "name", "west2-main")]
+    assert fake_client.commit_calls == ["openclash"]
+    assert result == {
+        "before": {
+            "section": "@config_subscribe[0]",
+            "name": "west2",
+            "address": "https://example/sub",
+            "enabled": True,
+        },
+        "after": {
+            "section": "@config_subscribe[0]",
+            "name": "west2-main",
+            "address": "https://example/sub",
+            "enabled": True,
+        },
+        "audit": None,
+    }
+
+
+def test_rename_subscription_rejects_duplicate_name(monkeypatch):
+    fake_client = FakeManageLuciRpcClient()
+    monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
+
+    try:
+        subscription_commands.rename_subscription("west2", "backup")
+        raise AssertionError("expected CliError")
+    except CliError as error:
+        assert error.code == "SUBSCRIPTION_NAME_CONFLICT"

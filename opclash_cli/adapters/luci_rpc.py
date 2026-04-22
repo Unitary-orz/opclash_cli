@@ -66,6 +66,10 @@ class _OpenWrtLocalBackend:
         subprocess.run(["uci", "commit", config_name], check=True, capture_output=True, text=True)
         return True
 
+    def delete_uci_section(self, config_name: str, section: str) -> bool:
+        subprocess.run(["uci", "delete", f"{config_name}.{section}"], check=True, capture_output=True, text=True)
+        return True
+
     def read_file(self, path: str) -> str:
         return Path(path).read_text(encoding="utf-8", errors="replace")
 
@@ -132,6 +136,9 @@ class _LuciJsonRpcBackend:
     def commit_uci(self, config_name: str) -> bool:
         return self.call("uci", "commit", [config_name])
 
+    def delete_uci_section(self, config_name: str, section: str) -> bool:
+        return self.call("uci", "delete", [config_name, section])
+
     def read_file(self, path: str) -> str:
         encoded = self.call("fs", "readfile", [path])
         return base64.b64decode(encoded).decode("utf-8", errors="replace")
@@ -190,6 +197,9 @@ class LuciRpcClient:
 
     def commit_uci(self, config_name: str) -> bool:
         return self._backend.commit_uci(config_name)
+
+    def delete_uci_section(self, config_name: str, section: str) -> bool:
+        return self._backend.delete_uci_section(config_name, section)
 
     def read_file(self, path: str) -> str:
         return self._backend.read_file(path)

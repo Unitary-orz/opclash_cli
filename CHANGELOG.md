@@ -2,6 +2,18 @@
 
 项目的重要变更记录在这里。
 
+## [Unreleased]
+
+### ✨ Added
+
+- 订阅管理补齐：`subscription remove`、`enable`、`disable`、`rename`
+- 删除订阅时自动写入本地归档：`~/.local/state/opclash_cli/subscription-archive.jsonl`
+
+### 🛠 Improved
+
+- README 补充订阅启停语义、归档位置与常用示例
+- 本地操作日志覆盖新增的订阅修改类命令
+
 ## [v0.2.0] - 2026-04-22
 
 ### ✨ Added

@@ -11,17 +11,17 @@
 ## ✨ 特性
 
 - 统一入口，覆盖 `init`、`nodes`、`subscription`、`service`、`doctor`
-- 输出结构化 JSON，便于脚本集成与自动化调用
+- 输出结构化 JSON，支持脚本集成与自动化调用
 - 读写命令边界清晰，常用操作保持简洁直接
-- 适合 AI Agent、终端脚本和日常运维场景
+- 面向 AI Agent、终端脚本和日常运维场景
 
 ## 📦 安装
 
 要求：
 
 - Python `3.11+`
-- 可访问的 OpenClash Controller 与 LuCI RPC
-- 建议使用虚拟环境
+- 可访问 OpenClash Controller 与 LuCI RPC
+- 使用虚拟环境
 
 普通安装：
 
@@ -79,39 +79,18 @@ opclash_cli subscription switch \
   --config /etc/openclash/config/example.yaml
 ```
 
-## 🛠️ 命令概览
+## ⚡ 常用子命令
 
-```text
-init
-nodes
-subscription
-service
-doctor
-version
-completion
-```
+- `opclash_cli init check`
+- `opclash_cli nodes groups`
+- `opclash_cli nodes speedtest --group HK --limit 10`
+- `opclash_cli subscription list`
+- `opclash_cli subscription update --name west2`
+- `opclash_cli subscription switch --config /etc/openclash/config/example.yaml`
+- `opclash_cli service restart --yes`
+- `opclash_cli doctor logs --limit 20`
 
-常用子命令：
-
-- `init show`：查看本地配置
-- `init check`：检查 Controller 与 LuCI RPC
-- `nodes groups`：列出节点组
-- `nodes group --name <group>`：查看指定节点组
-- `nodes providers`：列出 provider
-- `nodes switch --group <group> --target <node>`：切换节点
-- `nodes speedtest [--group <group>] [--limit <n>]`：调用 Clash 自带测速并按延迟排序
-- `subscription list`：列出订阅
-- `subscription current`：查看当前配置
-- `subscription configs`：列出配置文件
-- `subscription add --name <name> --url <url>`：新增订阅
-- `subscription update --name <name>`：更新订阅
-- `subscription switch --config <file>`：切换配置
-- `service status | reload | restart | logs`：服务状态与控制
-- `doctor network | runtime | config | logs`：基础诊断与本地操作日志
-- `version` / `--version`：查看版本信息
-- `completion bash|zsh`：生成 shell completion 脚本
-
-## 📋 子命令速览
+## 🛠️ 命令一览
 
 | 领域 | 子命令 | 用途 | 常见示例 |
 | --- | --- | --- | --- |
@@ -121,6 +100,10 @@ completion
 | 节点 | `nodes switch` | 切换组内节点 | `opclash_cli nodes switch --group Apple --target DIRECT` |
 | 节点 | `nodes speedtest` | 调用 Clash 自带测速并排序 | `opclash_cli nodes speedtest --group HK --limit 10` |
 | 订阅 | `subscription list` | 查看订阅列表 | `opclash_cli subscription list` |
+| 订阅 | `subscription add` | 新增订阅源 | `opclash_cli subscription add --name west2 --url https://example/sub` |
+| 订阅 | `subscription enable/disable` | 控制订阅是否参与更新 | `opclash_cli subscription enable --name west2` |
+| 订阅 | `subscription rename` | 调整订阅显示名 | `opclash_cli subscription rename --name west2 --to west2-main` |
+| 订阅 | `subscription remove` | 删除订阅并写入本地归档 | `opclash_cli subscription remove --name west2` |
 | 订阅 | `subscription update` | 更新订阅 | `opclash_cli subscription update --name west2` |
 | 订阅 | `subscription switch` | 切换远端配置文件 | `opclash_cli subscription switch --config /etc/openclash/config/example.yaml` |
 | 服务 | `service status` | 查看 OpenClash 服务状态 | `opclash_cli service status` |
@@ -136,13 +119,13 @@ completion
 ~/.config/opclash_cli/config.toml
 ```
 
-也可以通过环境变量覆盖：
+支持通过环境变量覆盖：
 
 ```bash
 export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 ```
 
-建议部署顺序：
+部署顺序：
 
 1. 安装 CLI
 2. 执行 `opclash_cli init ...` 写入连接配置
@@ -152,10 +135,20 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 说明：
 
 - `subscription switch --config` 需要传入远端 OpenClash 主机上的完整配置路径
+- `subscription enable/disable` 只影响该订阅是否参与更新，不直接切换当前运行配置
+- 支持同时启用多个订阅；OpenClash 当前生效的配置仍由 `subscription current` / `subscription switch` 决定
 - `service logs` 读取的是远端 `/tmp/openclash.log`
 - `doctor logs` 读取的是本地 CLI 操作日志
 
-## 📄 输出格式
+## 🔐 安全与审计设计
+
+- 本地凭据默认写入 `~/.config/opclash_cli/config.toml`，支持 `OPENCLASH_CLI_CONFIG` 覆盖
+- 修改类命令支持交互确认、`--yes` 与 `--dry-run`
+- CLI 统一输出 JSON，用于审计、脚本消费与自动化记录
+- 本地操作日志只记录初始化与修改类动作
+- 删除订阅时写入本地归档，用于回溯与恢复
+
+## 📄 输出
 
 命令默认输出结构化 JSON，例如：
 
@@ -174,96 +167,32 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 }
 ```
 
-## 🧪 开发
-
-运行测试：
-
-```bash
-python3 -m pytest
-```
-
-查看帮助：
-
-```bash
-python3 -m opclash_cli.main --help
-```
-
 ## 📝 日志
 
-CLI 现在会在本地追加记录操作日志，默认路径：
-
-```text
-~/.local/state/opclash_cli/operations.jsonl
-```
-
-可通过环境变量覆盖：
-
-```bash
-export OPENCLASH_CLI_LOG=/path/to/operations.jsonl
-```
-
-每条日志为一行 JSON，包含：
-
-- `timestamp`
-- `command`
-- `ok`
-- `warnings`
-- `audit`
-- `error`
-- `data`
-
-默认只记录两类操作：
-
-- 初始化相关：`init`、`init check`
-- 修改相关：`nodes switch`、`subscription add/update/switch`、`service reload/restart`
-
-查看本地操作日志：
-
-```bash
-opclash_cli doctor logs --limit 20
-```
-
-节点测速示例：
-
-```bash
-opclash_cli nodes speedtest --group HK --limit 10
-```
-
-安全确认与 dry-run：
-
-```bash
-opclash_cli service restart
-opclash_cli service restart --yes
-opclash_cli subscription switch --config /etc/openclash/config/example.yaml --dry-run
-```
-
-版本与 completion：
-
-```bash
-opclash_cli version
-opclash_cli --version
-opclash_cli completion bash
-opclash_cli completion zsh
-```
-
-## 🤝 支持
-
-- 使用问题：见 [SUPPORT.md](./SUPPORT.md)
-- 安全问题：见 [SECURITY.md](./SECURITY.md)
-- 贡献代码：见 [CONTRIBUTING.md](./CONTRIBUTING.md)
+- 操作日志：`~/.local/state/opclash_cli/operations.jsonl`
+- 删除归档：`~/.local/state/opclash_cli/subscription-archive.jsonl`
+- 环境变量：`OPENCLASH_CLI_LOG`、`OPENCLASH_CLI_SUBSCRIPTION_ARCHIVE`
+- 查看日志：`opclash_cli doctor logs --limit 20`
 
 ## 📚 文档
 
 - [变更记录](./CHANGELOG.md)
 - [贡献指南](./CONTRIBUTING.md)
-- [支持说明](./SUPPORT.md)
 - [安全说明](./SECURITY.md)
 - [许可证](./LICENSE)
 
-## 🗺️ 版本
+## 🏷️ 版本与补全
 
-- `v0.2.0`
+- 版本：`opclash_cli version` 或 `opclash_cli --version`
+- 补全：`opclash_cli completion bash` / `opclash_cli completion zsh`
+
+## 🧪 开发
+
+```bash
+python3 -m pytest
+python3 -m opclash_cli.main --help
+```
 
 ## 📜 许可
 
-本项目采用 `MIT` 许可证。
+许可证：`MIT`

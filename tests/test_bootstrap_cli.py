@@ -59,6 +59,22 @@ def test_mutation_commands_do_not_require_reason(capsys, monkeypatch):
         "opclash_cli.main.switch_config",
         lambda config: {"before": {"config_path": "a"}, "after": {"config_path": config}, "audit": None},
     )
+    monkeypatch.setattr(
+        "opclash_cli.main.remove_subscription",
+        lambda name: {"removed": {"name": name}, "archive": {"path": "/tmp/archive.jsonl"}, "audit": None},
+    )
+    monkeypatch.setattr(
+        "opclash_cli.main.enable_subscription",
+        lambda name: {"before": {"name": name, "enabled": False}, "after": {"name": name, "enabled": True}, "audit": None},
+    )
+    monkeypatch.setattr(
+        "opclash_cli.main.disable_subscription",
+        lambda name: {"before": {"name": name, "enabled": True}, "after": {"name": name, "enabled": False}, "audit": None},
+    )
+    monkeypatch.setattr(
+        "opclash_cli.main.rename_subscription",
+        lambda name, to: {"before": {"name": name}, "after": {"name": to}, "audit": None},
+    )
     monkeypatch.setattr("opclash_cli.main.service_reload", lambda: {"result": "ok", "audit": None})
     monkeypatch.setattr("opclash_cli.main.service_restart", lambda: {"result": "ok", "audit": None})
 
@@ -67,6 +83,10 @@ def test_mutation_commands_do_not_require_reason(capsys, monkeypatch):
         ["subscription", "add", "--name", "west2", "--url", "https://example/sub"],
         ["subscription", "update"],
         ["subscription", "switch", "--config", "/etc/openclash/config/west2.yaml"],
+        ["subscription", "remove", "--name", "west2"],
+        ["subscription", "enable", "--name", "west2"],
+        ["subscription", "disable", "--name", "west2"],
+        ["subscription", "rename", "--name", "west2", "--to", "west2-main"],
         ["service", "reload"],
         ["service", "restart"],
     ]
@@ -172,6 +192,54 @@ def test_dry_run_skips_mutation_execution(capsys, monkeypatch):
     assert called["switch"] is False
     assert payload["data"]["dry_run"] is True
     assert payload["data"]["params"] == {"group": "Apple", "target": "DIRECT"}
+
+
+def test_subscription_remove_returns_archive_path(capsys, monkeypatch):
+    monkeypatch.setattr(
+        "opclash_cli.main.remove_subscription",
+        lambda name: {"removed": {"name": name}, "archive": {"path": "/tmp/archive.jsonl"}, "audit": None},
+    )
+
+    exit_code = main(["subscription", "remove", "--name", "west2"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["command"] == "subscription remove"
+    assert payload["data"] == {"removed": {"name": "west2"}, "archive": {"path": "/tmp/archive.jsonl"}}
+
+
+def test_completion_bash_lists_new_subscription_commands(capsys):
+    exit_code = main(["completion", "bash"])
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    assert "subscription commands" not in output
+    assert "list current add update configs switch remove enable disable rename" in output
+
+
+def test_root_help_includes_command_descriptions(capsys):
+    try:
+        main(["--help"])
+    except SystemExit as error:
+        assert error.code == 0
+
+    output = capsys.readouterr().out
+    assert "Remote OpenClash management CLI" in output
+    assert "init                write or inspect local connection config" in output
+    assert "subscription        manage subscriptions and config switching" in output
+
+
+def test_subscription_help_includes_subcommand_descriptions(capsys):
+    try:
+        main(["subscription", "--help"])
+    except SystemExit as error:
+        assert error.code == 0
+
+    output = capsys.readouterr().out
+    assert "Manage subscriptions and config switching." in output
+    assert "remove              remove subscription and archive locally" in output
+    assert "enable              enable subscription updates" in output
+    assert "rename              rename subscription" in output
 
 
 def test_confirmation_can_abort_mutation(capsys, monkeypatch):

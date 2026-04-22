@@ -3,6 +3,7 @@ import re
 
 from opclash_cli.adapters.luci_rpc import LuciRpcClient
 from opclash_cli.errors import CliError
+from opclash_cli.subscription_archive import archive_subscription
 
 
 def summarize_subscriptions(payload: dict) -> list[dict]:
@@ -189,6 +190,64 @@ def add_subscription(name: str, url: str) -> dict:
         "subscription": {"section": section, **payload},
         "audit": None,
     }
+
+
+def _ensure_unique_subscription_name(subscriptions: list[dict], current_name: str, next_name: str) -> None:
+    for subscription in subscriptions:
+        if subscription["name"] == next_name and subscription["name"] != current_name:
+            raise CliError("SUBSCRIPTION_NAME_CONFLICT", f"Subscription '{next_name}' already exists")
+
+
+def _subscription_after_update(subscription: dict, **changes: object) -> dict:
+    return {**subscription, **changes}
+
+
+def remove_subscription(name: str) -> dict:
+    client = LuciRpcClient()
+    payload = client.get_openclash_uci()
+    subscription = find_subscription(payload, name)
+    archive = archive_subscription("remove", subscription)
+    client.delete_uci_section("openclash", subscription["section"])
+    client.commit_uci("openclash")
+    return {
+        "removed": subscription,
+        "archive": archive,
+        "audit": None,
+    }
+
+
+def _set_subscription_enabled(name: str, enabled: bool) -> dict:
+    client = LuciRpcClient()
+    payload = client.get_openclash_uci()
+    subscription = find_subscription(payload, name)
+    before = subscription
+    after = _subscription_after_update(subscription, enabled=enabled)
+    if before["enabled"] != enabled:
+        client.set_uci("openclash", subscription["section"], "enabled", "1" if enabled else "0")
+        client.commit_uci("openclash")
+    return {"before": before, "after": after, "audit": None}
+
+
+def enable_subscription(name: str) -> dict:
+    return _set_subscription_enabled(name, True)
+
+
+def disable_subscription(name: str) -> dict:
+    return _set_subscription_enabled(name, False)
+
+
+def rename_subscription(name: str, new_name: str) -> dict:
+    client = LuciRpcClient()
+    payload = client.get_openclash_uci()
+    subscriptions = summarize_subscriptions(payload)
+    subscription = find_subscription(payload, name)
+    _ensure_unique_subscription_name(subscriptions, subscription["name"], new_name)
+    before = subscription
+    after = _subscription_after_update(subscription, name=new_name)
+    if subscription["name"] != new_name:
+        client.set_uci("openclash", subscription["section"], "name", new_name)
+        client.commit_uci("openclash")
+    return {"before": before, "after": after, "audit": None}
 
 
 def update_subscription(name: str | None, config: str | None) -> dict:

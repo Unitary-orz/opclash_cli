@@ -22,8 +22,12 @@ from opclash_cli.commands.service import restart as service_restart
 from opclash_cli.commands.service import status as service_status
 from opclash_cli.commands.subscription import (
     add_subscription,
+    disable_subscription,
+    enable_subscription,
     current_config,
     list_subscriptions,
+    remove_subscription,
+    rename_subscription,
     switch_config,
     update_subscription,
 )
@@ -36,6 +40,10 @@ _MUTATING_COMMANDS = {
     "init",
     "nodes switch",
     "subscription add",
+    "subscription remove",
+    "subscription enable",
+    "subscription disable",
+    "subscription rename",
     "subscription update",
     "subscription switch",
     "service reload",
@@ -44,82 +52,154 @@ _MUTATING_COMMANDS = {
 
 
 def _add_mutation_flags(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--yes", action="store_true")
-    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--yes", action="store_true", help="skip interactive confirmation")
+    parser.add_argument("--dry-run", action="store_true", help="show planned action without executing")
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="opclash_cli")
-    parser.add_argument("--version", action="store_true")
+    parser = argparse.ArgumentParser(
+        prog="opclash_cli",
+        description="Remote OpenClash management CLI",
+    )
+    parser.add_argument("--version", action="store_true", help="print plain version banner")
     subparsers = parser.add_subparsers(dest="command")
 
-    init_parser = subparsers.add_parser("init")
+    init_parser = subparsers.add_parser(
+        "init",
+        help="write or inspect local connection config",
+        description="Write or inspect local connection config.",
+    )
     _add_mutation_flags(init_parser)
-    init_parser.add_argument("--controller-url")
-    init_parser.add_argument("--controller-secret")
-    init_parser.add_argument("--luci-url")
-    init_parser.add_argument("--luci-username")
-    init_parser.add_argument("--luci-password")
+    init_parser.add_argument("--controller-url", help="Clash controller URL")
+    init_parser.add_argument("--controller-secret", help="Clash controller secret")
+    init_parser.add_argument("--luci-url", help="LuCI RPC base URL")
+    init_parser.add_argument("--luci-username", help="LuCI username")
+    init_parser.add_argument("--luci-password", help="LuCI password")
     init_subparsers = init_parser.add_subparsers(dest="init_command")
-    init_subparsers.add_parser("show")
+    init_subparsers.add_parser("show", help="show masked local config", description="Show masked local config.")
 
-    nodes_parser = subparsers.add_parser("nodes")
+    nodes_parser = subparsers.add_parser(
+        "nodes",
+        help="inspect nodes, groups, and switch targets",
+        description="Inspect nodes, groups, and switch targets.",
+    )
     nodes_subparsers = nodes_parser.add_subparsers(dest="nodes_command")
-    nodes_subparsers.add_parser("groups")
-    nodes_subparsers.add_parser("providers")
-    speedtest_parser = nodes_subparsers.add_parser("speedtest")
-    speedtest_parser.add_argument("--group")
-    speedtest_parser.add_argument("--limit", type=int, default=10)
-    speedtest_parser.add_argument("--url", default="https://www.gstatic.com/generate_204")
-    speedtest_parser.add_argument("--timeout", type=int, default=5000)
-    group_parser = nodes_subparsers.add_parser("group")
-    group_parser.add_argument("--name", required=True)
-    switch_parser = nodes_subparsers.add_parser("switch")
+    nodes_subparsers.add_parser("groups", help="list proxy groups", description="List proxy groups.")
+    nodes_subparsers.add_parser("providers", help="list providers", description="List providers.")
+    speedtest_parser = nodes_subparsers.add_parser(
+        "speedtest",
+        help="run Clash speedtest and sort results",
+        description="Run Clash speedtest and sort results.",
+    )
+    speedtest_parser.add_argument("--group", help="limit speedtest to one proxy group")
+    speedtest_parser.add_argument("--limit", type=int, default=10, help="max number of results to return")
+    speedtest_parser.add_argument("--url", default="https://www.gstatic.com/generate_204", help="probe URL")
+    speedtest_parser.add_argument("--timeout", type=int, default=5000, help="per-node timeout in milliseconds")
+    group_parser = nodes_subparsers.add_parser("group", help="show one proxy group", description="Show one proxy group.")
+    group_parser.add_argument("--name", required=True, help="proxy group name")
+    switch_parser = nodes_subparsers.add_parser(
+        "switch",
+        help="switch one proxy group target",
+        description="Switch one proxy group target.",
+    )
     _add_mutation_flags(switch_parser)
-    switch_parser.add_argument("--group", required=True)
-    switch_parser.add_argument("--target", required=True)
+    switch_parser.add_argument("--group", required=True, help="proxy group name")
+    switch_parser.add_argument("--target", required=True, help="target node name")
 
-    subscription_parser = subparsers.add_parser("subscription")
+    subscription_parser = subparsers.add_parser(
+        "subscription",
+        help="manage subscriptions and config switching",
+        description="Manage subscriptions and config switching.",
+    )
     subscription_subparsers = subscription_parser.add_subparsers(dest="subscription_command")
-    subscription_subparsers.add_parser("list")
-    subscription_subparsers.add_parser("current")
-    add_parser = subscription_subparsers.add_parser("add")
+    subscription_subparsers.add_parser("list", help="list subscriptions", description="List subscriptions.")
+    subscription_subparsers.add_parser("current", help="show current config path", description="Show current config path.")
+    add_parser = subscription_subparsers.add_parser("add", help="add subscription", description="Add subscription.")
     _add_mutation_flags(add_parser)
-    add_parser.add_argument("--name", required=True)
-    add_parser.add_argument("--url", required=True)
-    update_parser = subscription_subparsers.add_parser("update")
+    add_parser.add_argument("--name", required=True, help="subscription name")
+    add_parser.add_argument("--url", required=True, help="subscription URL")
+    remove_parser = subscription_subparsers.add_parser(
+        "remove",
+        help="remove subscription and archive locally",
+        description="Remove subscription and archive locally.",
+    )
+    _add_mutation_flags(remove_parser)
+    remove_parser.add_argument("--name", required=True, help="subscription name")
+    enable_parser = subscription_subparsers.add_parser(
+        "enable",
+        help="enable subscription updates",
+        description="Enable subscription updates.",
+    )
+    _add_mutation_flags(enable_parser)
+    enable_parser.add_argument("--name", required=True, help="subscription name")
+    disable_parser = subscription_subparsers.add_parser(
+        "disable",
+        help="disable subscription updates",
+        description="Disable subscription updates.",
+    )
+    _add_mutation_flags(disable_parser)
+    disable_parser.add_argument("--name", required=True, help="subscription name")
+    rename_parser = subscription_subparsers.add_parser(
+        "rename",
+        help="rename subscription",
+        description="Rename subscription.",
+    )
+    _add_mutation_flags(rename_parser)
+    rename_parser.add_argument("--name", required=True, help="current subscription name")
+    rename_parser.add_argument("--to", required=True, help="new subscription name")
+    update_parser = subscription_subparsers.add_parser(
+        "update",
+        help="update subscriptions or one config",
+        description="Update subscriptions or one config.",
+    )
     _add_mutation_flags(update_parser)
     update_target_group = update_parser.add_mutually_exclusive_group()
-    update_target_group.add_argument("--name")
-    update_target_group.add_argument("--config")
-    configs_parser = subscription_subparsers.add_parser("configs")
-    configs_parser.add_argument("--directory", default="/etc/openclash/config")
-    switch_parser = subscription_subparsers.add_parser("switch")
+    update_target_group.add_argument("--name", help="subscription name")
+    update_target_group.add_argument("--config", help="full config path on remote host")
+    configs_parser = subscription_subparsers.add_parser(
+        "configs",
+        help="list remote config files",
+        description="List remote config files.",
+    )
+    configs_parser.add_argument("--directory", default="/etc/openclash/config", help="remote config directory")
+    switch_parser = subscription_subparsers.add_parser(
+        "switch",
+        help="switch active config file",
+        description="Switch active config file.",
+    )
     _add_mutation_flags(switch_parser)
-    switch_parser.add_argument("--config", required=True)
+    switch_parser.add_argument("--config", required=True, help="full config path on remote host")
 
-    service_parser = subparsers.add_parser("service")
+    service_parser = subparsers.add_parser(
+        "service",
+        help="inspect and control OpenClash service",
+        description="Inspect and control OpenClash service.",
+    )
     service_subparsers = service_parser.add_subparsers(dest="service_command")
-    service_subparsers.add_parser("status")
-    reload_parser = service_subparsers.add_parser("reload")
+    service_subparsers.add_parser("status", help="show service status", description="Show service status.")
+    reload_parser = service_subparsers.add_parser("reload", help="reload service", description="Reload service.")
     _add_mutation_flags(reload_parser)
-    restart_parser = service_subparsers.add_parser("restart")
+    restart_parser = service_subparsers.add_parser("restart", help="restart service", description="Restart service.")
     _add_mutation_flags(restart_parser)
-    service_subparsers.add_parser("logs")
+    service_subparsers.add_parser("logs", help="show remote openclash log", description="Show remote openclash log.")
 
-    init_subparsers.add_parser("check")
+    init_subparsers.add_parser("check", help="check controller and LuCI connectivity", description="Check controller and LuCI connectivity.")
 
-    doctor_parser = subparsers.add_parser("doctor")
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="run local diagnostics",
+        description="Run local diagnostics.",
+    )
     doctor_subparsers = doctor_parser.add_subparsers(dest="doctor_command")
-    doctor_subparsers.add_parser("network")
-    doctor_subparsers.add_parser("runtime")
-    doctor_subparsers.add_parser("config")
-    doctor_logs_parser = doctor_subparsers.add_parser("logs")
-    doctor_logs_parser.add_argument("--limit", type=int, default=20)
+    doctor_subparsers.add_parser("network", help="check local network basics", description="Check local network basics.")
+    doctor_subparsers.add_parser("runtime", help="check runtime environment", description="Check runtime environment.")
+    doctor_subparsers.add_parser("config", help="check local config file", description="Check local config file.")
+    doctor_logs_parser = doctor_subparsers.add_parser("logs", help="show local operation logs", description="Show local operation logs.")
+    doctor_logs_parser.add_argument("--limit", type=int, default=20, help="number of log entries to show")
 
-    subparsers.add_parser("version")
-    completion_parser = subparsers.add_parser("completion")
-    completion_parser.add_argument("shell", choices=["bash", "zsh"])
+    subparsers.add_parser("version", help="show structured version info", description="Show structured version info.")
+    completion_parser = subparsers.add_parser("completion", help="generate shell completion script", description="Generate shell completion script.")
+    completion_parser.add_argument("shell", choices=["bash", "zsh"], help="target shell")
 
     return parser
 
@@ -169,7 +249,7 @@ def _completion_script(shell: str) -> str:
       COMPREPLY=( $(compgen -W "groups providers group switch speedtest" -- "$cur") )
       ;;
     subscription)
-      COMPREPLY=( $(compgen -W "list current add update configs switch" -- "$cur") )
+      COMPREPLY=( $(compgen -W "list current add update configs switch remove enable disable rename" -- "$cur") )
       ;;
     service)
       COMPREPLY=( $(compgen -W "status reload restart logs" -- "$cur") )
@@ -211,7 +291,7 @@ _opclash_cli() {
           _values 'nodes commands' groups providers group switch speedtest
           ;;
         subscription)
-          _values 'subscription commands' list current add update configs switch
+          _values 'subscription commands' list current add update configs switch remove enable disable rename
           ;;
         service)
           _values 'service commands' status reload restart logs
@@ -246,6 +326,14 @@ def _dry_run_payload(args: argparse.Namespace) -> dict:
         params = {"group": args.group, "target": args.target}
     elif command == "subscription add":
         params = {"name": args.name, "url": args.url}
+    elif command == "subscription remove":
+        params = {"name": args.name}
+    elif command == "subscription enable":
+        params = {"name": args.name}
+    elif command == "subscription disable":
+        params = {"name": args.name}
+    elif command == "subscription rename":
+        params = {"name": args.name, "to": args.to}
     elif command == "subscription update":
         params = {"name": args.name, "config": args.config}
     elif command == "subscription switch":
@@ -359,6 +447,26 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "subscription" and args.subscription_command == "add":
             result = add_subscription(args.name, args.url)
             emit(ok("subscription add", {"subscription": result["subscription"]}, audit=result["audit"]))
+            return 0
+
+        if args.command == "subscription" and args.subscription_command == "remove":
+            result = remove_subscription(args.name)
+            emit(ok("subscription remove", {"removed": result["removed"], "archive": result["archive"]}, audit=result["audit"]))
+            return 0
+
+        if args.command == "subscription" and args.subscription_command == "enable":
+            result = enable_subscription(args.name)
+            emit(ok("subscription enable", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
+            return 0
+
+        if args.command == "subscription" and args.subscription_command == "disable":
+            result = disable_subscription(args.name)
+            emit(ok("subscription disable", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
+            return 0
+
+        if args.command == "subscription" and args.subscription_command == "rename":
+            result = rename_subscription(args.name, args.to)
+            emit(ok("subscription rename", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
             return 0
 
         if args.command == "subscription" and args.subscription_command == "update":
