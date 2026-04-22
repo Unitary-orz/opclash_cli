@@ -68,7 +68,7 @@ def switch_config(path: str, reason: str) -> dict:
 def summarize_config_files(entries: list[dict], directory: str = "/etc/openclash/config") -> list[dict]:
     return [
         {
-            "path": f"{directory}/{entry['name']}",
+            "path": entry["path"],
             "size": entry["size"],
             "mtime": entry["mtime"],
         }
@@ -77,17 +77,8 @@ def summarize_config_files(entries: list[dict], directory: str = "/etc/openclash
 
 
 def config_files(directory: str) -> dict:
-    raw = LuciRpcClient().service_exec(f"ls -l --full-time {directory}/*.yaml")
-    entries = []
-    for line in raw.splitlines():
-        parts = line.split()
-        if len(parts) < 9:
-            continue
-        entries.append(
-            {
-                "name": parts[-1].split("/")[-1],
-                "size": int(parts[4]),
-                "mtime": f"{parts[5]}T{parts[6].split('.')[0]}Z",
-            }
-        )
+    entries = [
+        {"path": entry.path, "size": entry.size, "mtime": entry.mtime}
+        for entry in LuciRpcClient().list_config_files(directory)
+    ]
     return {"configs": summarize_config_files(entries, directory)}

@@ -1,4 +1,9 @@
 import json
+from datetime import datetime, timezone
+
+
+def _timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def emit(payload: dict, pretty: bool = False) -> None:
@@ -12,7 +17,7 @@ def ok(command: str, data: dict, warnings: list[str] | None = None, audit: dict 
     return {
         "ok": True,
         "command": command,
-        "timestamp": "1970-01-01T00:00:00Z",
+        "timestamp": _timestamp(),
         "data": data,
         "warnings": warnings or [],
         "audit": audit,
@@ -24,7 +29,7 @@ def fail(command: str, code: str, message: str, details: dict | None = None) -> 
     return {
         "ok": False,
         "command": command,
-        "timestamp": "1970-01-01T00:00:00Z",
+        "timestamp": _timestamp(),
         "data": {},
         "warnings": [],
         "audit": None,
