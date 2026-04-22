@@ -20,8 +20,8 @@ dev = [
 [project.scripts]
 opclash_cli = "opclash_cli.main:main"
 
-[tool.setuptools]
-packages = ["opclash_cli"]
+[tool.setuptools.packages.find]
+include = ["opclash_cli*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

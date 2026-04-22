@@ -13,8 +13,28 @@
 
 ## 📦 安装
 
+要求：
+
+- Python `3.11+`
+- 可访问的 OpenClash Controller 与 LuCI RPC
+- 建议使用虚拟环境
+
+普通安装：
+
 ```bash
-python3 -m pip install -e .
+python3 -m pip install .
+```
+
+安装后可直接使用：
+
+```bash
+opclash_cli --help
+```
+
+开发安装：
+
+```bash
+python3 -m pip install -e .[dev]
 ```
 
 或直接运行：
@@ -39,20 +59,20 @@ python3 -m opclash_cli.main init \
 2. 检查后端连通性
 
 ```bash
-python3 -m opclash_cli.main init check
+opclash_cli init check
 ```
 
 3. 查看节点组
 
 ```bash
-python3 -m opclash_cli.main nodes groups
+opclash_cli nodes groups
 ```
 
 4. 切换订阅配置
 
 ```bash
-python3 -m opclash_cli.main subscription switch \
-  --config example.yaml
+opclash_cli subscription switch \
+  --config /etc/openclash/config/example.yaml
 ```
 
 ## 🛠️ 命令概览
@@ -82,6 +102,32 @@ doctor
 - `service status | reload | restart | logs`：服务状态与控制
 - `doctor network | runtime | config`：基础诊断
 
+## ⚙️ 配置与部署
+
+本地配置文件默认写入：
+
+```text
+~/.config/opclash_cli/config.toml
+```
+
+也可以通过环境变量覆盖：
+
+```bash
+export OPENCLASH_CLI_CONFIG=/path/to/config.toml
+```
+
+建议部署顺序：
+
+1. 安装 CLI
+2. 执行 `opclash_cli init ...` 写入连接配置
+3. 执行 `opclash_cli init check` 验证 Controller 与 LuCI RPC
+4. 再执行 `nodes`、`subscription`、`service` 等操作命令
+
+说明：
+
+- `subscription switch --config` 需要传入远端 OpenClash 主机上的完整配置路径
+- `service logs` 读取的是远端 `/tmp/openclash.log`
+
 ## 📄 输出格式
 
 命令默认输出结构化 JSON，例如：
@@ -103,12 +149,6 @@ doctor
 
 ## 🧪 开发
 
-安装开发依赖：
-
-```bash
-python3 -m pip install -e .[dev]
-```
-
 运行测试：
 
 ```bash
@@ -120,6 +160,30 @@ python3 -m pytest
 ```bash
 python3 -m opclash_cli.main --help
 ```
+
+## 📝 日志
+
+CLI 现在会在本地追加记录操作日志，默认路径：
+
+```text
+~/.local/state/opclash_cli/operations.jsonl
+```
+
+可通过环境变量覆盖：
+
+```bash
+export OPENCLASH_CLI_LOG=/path/to/operations.jsonl
+```
+
+每条日志为一行 JSON，包含：
+
+- `timestamp`
+- `command`
+- `ok`
+- `warnings`
+- `audit`
+- `error`
+- `data`
 
 ## 📚 文档
 

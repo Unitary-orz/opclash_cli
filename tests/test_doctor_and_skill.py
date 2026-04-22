@@ -1,8 +1,9 @@
 from datetime import datetime
+import json
 
 from opclash_cli.commands.doctor import build_network_report
 from opclash_cli.commands.subscription import summarize_config_files
-from opclash_cli.output import ok
+from opclash_cli.output import emit, ok
 
 
 def test_summarize_config_files_returns_name_size_and_mtime():
@@ -28,3 +29,19 @@ def test_ok_uses_real_utc_timestamp():
     assert payload["timestamp"] != "1970-01-01T00:00:00Z"
     assert payload["timestamp"].endswith("Z")
     datetime.fromisoformat(payload["timestamp"].replace("Z", "+00:00"))
+
+
+def test_emit_writes_operation_log(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("OPENCLASH_CLI_LOG", str(tmp_path / "operations.jsonl"))
+
+    payload = ok("demo", {"value": 1})
+    emit(payload)
+
+    captured = json.loads(capsys.readouterr().out)
+    log_lines = (tmp_path / "operations.jsonl").read_text(encoding="utf-8").splitlines()
+
+    assert captured["command"] == "demo"
+    assert len(log_lines) == 1
+    logged = json.loads(log_lines[0])
+    assert logged["command"] == "demo"
+    assert logged["ok"] is True

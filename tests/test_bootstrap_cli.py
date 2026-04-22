@@ -1,4 +1,6 @@
 import json
+import tomllib
+from pathlib import Path
 
 from opclash_cli.errors import CliError
 from opclash_cli.main import main
@@ -73,3 +75,11 @@ def test_mutation_commands_do_not_require_reason(capsys, monkeypatch):
         payload = json.loads(capsys.readouterr().out)
         assert exit_code == 0
         assert payload["ok"] is True
+
+
+def test_pyproject_includes_cli_subpackages():
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+
+    packages = pyproject.get("tool", {}).get("setuptools", {}).get("packages")
+
+    assert packages != ["opclash_cli"]

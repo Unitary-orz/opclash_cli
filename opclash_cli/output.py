@@ -1,12 +1,15 @@
 import json
 from datetime import datetime, timezone
 
+from opclash_cli.operation_log import append_operation
+
 
 def _timestamp() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def emit(payload: dict, pretty: bool = False) -> None:
+    append_operation(payload)
     if pretty:
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return
