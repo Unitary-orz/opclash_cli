@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from opclash_cli.adapters.luci_rpc import LuciRpcClient
 from opclash_cli.errors import CliError
 
@@ -50,6 +52,9 @@ def add_subscription(name: str, url: str, reason: str) -> dict:
 
 def switch_config(path: str, reason: str) -> dict:
     client = LuciRpcClient()
+    config_paths = {entry.path for entry in client.list_config_files(str(Path(path).parent))}
+    if path not in config_paths:
+        raise CliError("CONFIG_NOT_FOUND", f"Config '{path}' was not found")
     payload = client.get_openclash_uci()
     current = payload["config"]["config_path"]
     if path == current:
@@ -58,6 +63,12 @@ def switch_config(path: str, reason: str) -> dict:
     client.commit_uci("openclash")
     client.service_exec("/etc/init.d/openclash reload")
     refreshed = client.get_openclash_uci()["config"]["config_path"]
+    if refreshed != path:
+        raise CliError(
+            "VERIFY_FAILED",
+            "Config switch did not take effect",
+            {"expected": path, "actual": refreshed},
+        )
     return {
         "before": {"config_path": current},
         "after": {"config_path": refreshed},

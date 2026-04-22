@@ -21,6 +21,7 @@ from opclash_cli.commands.subscription import (
     list_subscriptions,
     switch_config,
 )
+from opclash_cli.errors import CliError
 from opclash_cli.local_config import config_exists
 from opclash_cli.output import emit, fail, ok
 
@@ -83,106 +84,124 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _command_name(args: argparse.Namespace) -> str:
+    if args.command == "init":
+        return "init" if args.init_command is None else f"init {args.init_command}"
+    if args.command == "nodes":
+        return f"nodes {args.nodes_command}"
+    if args.command == "subscription":
+        return f"subscription {args.subscription_command}"
+    if args.command == "service":
+        return f"service {args.service_command}"
+    if args.command == "doctor":
+        return f"doctor {args.doctor_command}"
+    return args.command or "unknown"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    if args.command == "init" and args.init_command is None:
-        emit(
-            ok(
-                "init",
-                write_config(
-                    args.controller_url,
-                    args.controller_secret,
-                    args.luci_url,
-                    args.luci_username,
-                    args.luci_password,
-                ),
+    try:
+        if args.command == "init" and args.init_command is None:
+            emit(
+                ok(
+                    "init",
+                    write_config(
+                        args.controller_url,
+                        args.controller_secret,
+                        args.luci_url,
+                        args.luci_username,
+                        args.luci_password,
+                    ),
+                )
             )
-        )
-        return 0
+            return 0
 
-    if args.command == "init" and args.init_command == "show":
-        if not config_exists():
-            emit(fail("init show", "LOCAL_CONFIG_MISSING", "Local config file was not found"))
-            return 1
-        emit(ok("init show", show_config()))
-        return 0
+        if args.command == "init" and args.init_command == "show":
+            if not config_exists():
+                emit(fail("init show", "LOCAL_CONFIG_MISSING", "Local config file was not found"))
+                return 1
+            emit(ok("init show", show_config()))
+            return 0
 
-    if args.command == "init" and args.init_command == "check":
-        emit(ok("init check", check_backends()))
-        return 0
+        if args.command == "init" and args.init_command == "check":
+            emit(ok("init check", check_backends()))
+            return 0
 
-    if args.command == "nodes" and args.nodes_command == "groups":
-        emit(ok("nodes groups", nodes_groups()))
-        return 0
+        if args.command == "nodes" and args.nodes_command == "groups":
+            emit(ok("nodes groups", nodes_groups()))
+            return 0
 
-    if args.command == "nodes" and args.nodes_command == "providers":
-        emit(ok("nodes providers", nodes_providers()))
-        return 0
+        if args.command == "nodes" and args.nodes_command == "providers":
+            emit(ok("nodes providers", nodes_providers()))
+            return 0
 
-    if args.command == "nodes" and args.nodes_command == "group":
-        emit(ok("nodes group", node_group(args.name)))
-        return 0
+        if args.command == "nodes" and args.nodes_command == "group":
+            emit(ok("nodes group", node_group(args.name)))
+            return 0
 
-    if args.command == "nodes" and args.nodes_command == "switch":
-        result = switch_node(args.group, args.target, args.reason)
-        emit(ok("nodes switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
-        return 0
+        if args.command == "nodes" and args.nodes_command == "switch":
+            result = switch_node(args.group, args.target, args.reason)
+            emit(ok("nodes switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
+            return 0
 
-    if args.command == "subscription" and args.subscription_command == "list":
-        emit(ok("subscription list", list_subscriptions()))
-        return 0
+        if args.command == "subscription" and args.subscription_command == "list":
+            emit(ok("subscription list", list_subscriptions()))
+            return 0
 
-    if args.command == "subscription" and args.subscription_command == "current":
-        emit(ok("subscription current", current_config()))
-        return 0
+        if args.command == "subscription" and args.subscription_command == "current":
+            emit(ok("subscription current", current_config()))
+            return 0
 
-    if args.command == "subscription" and args.subscription_command == "configs":
-        from opclash_cli.commands.subscription import config_files
+        if args.command == "subscription" and args.subscription_command == "configs":
+            from opclash_cli.commands.subscription import config_files
 
-        emit(ok("subscription configs", config_files(args.directory)))
-        return 0
+            emit(ok("subscription configs", config_files(args.directory)))
+            return 0
 
-    if args.command == "subscription" and args.subscription_command == "add":
-        result = add_subscription(args.name, args.url, args.reason)
-        emit(ok("subscription add", {"subscription": result["subscription"]}, audit=result["audit"]))
-        return 0
+        if args.command == "subscription" and args.subscription_command == "add":
+            result = add_subscription(args.name, args.url, args.reason)
+            emit(ok("subscription add", {"subscription": result["subscription"]}, audit=result["audit"]))
+            return 0
 
-    if args.command == "subscription" and args.subscription_command == "switch":
-        result = switch_config(args.config, args.reason)
-        emit(ok("subscription switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
-        return 0
+        if args.command == "subscription" and args.subscription_command == "switch":
+            result = switch_config(args.config, args.reason)
+            emit(ok("subscription switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
+            return 0
 
-    if args.command == "service" and args.service_command == "status":
-        emit(ok("service status", service_status()))
-        return 0
+        if args.command == "service" and args.service_command == "status":
+            emit(ok("service status", service_status()))
+            return 0
 
-    if args.command == "service" and args.service_command == "reload":
-        result = service_reload(args.reason)
-        emit(ok("service reload", {"result": result["result"]}, audit=result["audit"]))
-        return 0
+        if args.command == "service" and args.service_command == "reload":
+            result = service_reload(args.reason)
+            emit(ok("service reload", {"result": result["result"]}, audit=result["audit"]))
+            return 0
 
-    if args.command == "service" and args.service_command == "restart":
-        result = service_restart(args.reason)
-        emit(ok("service restart", {"result": result["result"]}, audit=result["audit"]))
-        return 0
+        if args.command == "service" and args.service_command == "restart":
+            result = service_restart(args.reason)
+            emit(ok("service restart", {"result": result["result"]}, audit=result["audit"]))
+            return 0
 
-    if args.command == "service" and args.service_command == "logs":
-        emit(ok("service logs", service_logs()))
-        return 0
+        if args.command == "service" and args.service_command == "logs":
+            emit(ok("service logs", service_logs()))
+            return 0
 
-    if args.command == "doctor" and args.doctor_command == "network":
-        emit(ok("doctor network", doctor_network()))
-        return 0
+        if args.command == "doctor" and args.doctor_command == "network":
+            emit(ok("doctor network", doctor_network()))
+            return 0
 
-    if args.command == "doctor" and args.doctor_command == "runtime":
-        emit(ok("doctor runtime", doctor_runtime()))
-        return 0
+        if args.command == "doctor" and args.doctor_command == "runtime":
+            emit(ok("doctor runtime", doctor_runtime()))
+            return 0
 
-    if args.command == "doctor" and args.doctor_command == "config":
-        emit(ok("doctor config", doctor_config()))
-        return 0
+        if args.command == "doctor" and args.doctor_command == "config":
+            emit(ok("doctor config", doctor_config()))
+            return 0
+    except CliError as error:
+        emit(fail(_command_name(args), error.code, error.message, error.details))
+        return 1
 
     parser.print_help()
     return 0
