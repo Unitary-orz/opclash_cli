@@ -28,6 +28,7 @@ from opclash_cli.commands.subscription import (
     list_subscriptions,
     remove_subscription,
     rename_subscription,
+    subscription_usage,
     switch_config,
     update_subscription,
 )
@@ -113,6 +114,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sub_subparsers = sub_parser.add_subparsers(dest="sub_command")
     sub_subparsers.add_parser("list", help="list subscriptions", description="List subscriptions.")
+    usage_parser = sub_subparsers.add_parser(
+        "usage",
+        help="show subscription quota and expiry",
+        description="Show subscription quota and expiry.",
+    )
+    usage_parser.add_argument("--name", help="subscription name")
     sub_subparsers.add_parser("current", help="show current config path", description="Show current config path.")
     add_parser = sub_subparsers.add_parser("add", help="add subscription", description="Add subscription.")
     _add_mutation_flags(add_parser)
@@ -226,6 +233,10 @@ def _stdin_isatty() -> bool:
     return sys.stdin.isatty()
 
 
+def _stderr_progress(message: str) -> None:
+    print(f"[opclash_cli] {message}", file=sys.stderr, flush=True)
+
+
 def _version_payload() -> dict:
     return {
         "brand": __brand__,
@@ -249,7 +260,7 @@ def _completion_script(shell: str) -> str:
       COMPREPLY=( $(compgen -W "groups providers group switch speedtest" -- "$cur") )
       ;;
     sub)
-      COMPREPLY=( $(compgen -W "list current add update configs switch remove enable disable rename" -- "$cur") )
+      COMPREPLY=( $(compgen -W "list current add update configs switch remove enable disable rename usage" -- "$cur") )
       ;;
     service)
       COMPREPLY=( $(compgen -W "status reload restart logs" -- "$cur") )
@@ -291,7 +302,7 @@ _opclash_cli() {
           _values 'nodes commands' groups providers group switch speedtest
           ;;
         sub)
-          _values 'sub commands' list current add update configs switch remove enable disable rename
+          _values 'sub commands' list current add update configs switch remove enable disable rename usage
           ;;
         service)
           _values 'service commands' status reload restart logs
@@ -434,6 +445,10 @@ def main(argv: list[str] | None = None) -> int:
             emit(ok("sub list", list_subscriptions()))
             return 0
 
+        if args.command == "sub" and args.sub_command == "usage":
+            emit(ok("sub usage", subscription_usage(args.name)))
+            return 0
+
         if args.command == "sub" and args.sub_command == "current":
             emit(ok("sub current", current_config()))
             return 0
@@ -470,7 +485,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.command == "sub" and args.sub_command == "update":
-            result = update_subscription(args.name, args.config)
+            result = update_subscription(args.name, args.config, progress=_stderr_progress)
             emit(
                 ok(
                     "sub update",
@@ -489,7 +504,14 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "sub" and args.sub_command == "switch":
             result = switch_config(args.config)
-            emit(ok("sub switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
+            data = {
+                "before": result["before"],
+                "after": result["after"],
+                "changed": result.get("changed", True),
+            }
+            if "message" in result:
+                data["message"] = result["message"]
+            emit(ok("sub switch", data, audit=result["audit"]))
             return 0
 
         if args.command == "service" and args.service_command == "status":

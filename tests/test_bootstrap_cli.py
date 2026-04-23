@@ -45,7 +45,7 @@ def test_mutation_commands_do_not_require_reason(capsys, monkeypatch):
     )
     monkeypatch.setattr(
         "opclash_cli.main.update_subscription",
-        lambda name, config: {
+        lambda name, config, progress=None: {
             "target": {"mode": "all"},
             "items": [],
             "summary": {"overall_status": "success", "total": 0, "updated_count": 0, "unchanged_count": 0, "failed_count": 0, "skipped_count": 0},
@@ -250,6 +250,66 @@ def test_subscription_command_is_removed(capsys):
 
     stderr = capsys.readouterr().err
     assert "invalid choice: 'subscription'" in stderr
+
+
+def test_subscription_update_writes_progress_to_stderr(capsys, monkeypatch):
+    def fake_update_subscription(name, config, progress=None):
+        if progress is not None:
+            progress("Starting subscription update")
+        return {
+            "target": {"mode": "all"},
+            "items": [],
+            "summary": {
+                "overall_status": "success",
+                "total": 0,
+                "updated_count": 0,
+                "unchanged_count": 0,
+                "failed_count": 0,
+                "skipped_count": 0,
+            },
+            "before": {"config_path": "/etc/openclash/config/current.yaml"},
+            "after": {"config_path": "/etc/openclash/config/current.yaml"},
+            "suggested_commands": [],
+            "audit": None,
+        }
+
+    monkeypatch.setattr(
+        "opclash_cli.main.update_subscription",
+        fake_update_subscription,
+    )
+
+    exit_code = main(["sub", "update", "--yes"])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["ok"] is True
+    assert "Starting subscription update" in captured.err
+
+
+def test_subscription_usage_command_returns_quota(capsys, monkeypatch):
+    monkeypatch.setattr(
+        "opclash_cli.main.subscription_usage",
+        lambda name: {
+            "target": {"mode": "single", "name": name},
+            "items": [
+                {
+                    "name": name,
+                    "status": "ok",
+                    "quota": {"remain_bytes": 70, "total_bytes": 100, "remain_percent": 70.0},
+                }
+            ],
+            "summary": {"total": 1, "ok": 1, "failed": 0, "skipped": 0},
+        },
+    )
+
+    exit_code = main(["sub", "usage", "--name", "x-max"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["ok"] is True
+    assert payload["command"] == "sub usage"
+    assert payload["data"]["items"][0]["quota"]["remain_percent"] == 70.0
 
 
 def test_confirmation_can_abort_mutation(capsys, monkeypatch):

@@ -69,6 +69,25 @@ def test_switch_config_rejects_missing_target(monkeypatch):
     assert fake_client.reloaded is False
 
 
+def test_switch_config_is_noop_success_when_target_is_already_active(monkeypatch):
+    fake_client = FakeLuciRpcClient()
+    fake_client.list_config_files = lambda directory: [FakeConfigEntry("/etc/openclash/config/current.yaml")]
+    monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
+
+    result = subscription_commands.switch_config("/etc/openclash/config/current.yaml")
+
+    assert result == {
+        "before": {"config_path": "/etc/openclash/config/current.yaml"},
+        "after": {"config_path": "/etc/openclash/config/current.yaml"},
+        "changed": False,
+        "message": "Target config is already active",
+        "audit": None,
+    }
+    assert fake_client.set_calls == []
+    assert fake_client.committed is False
+    assert fake_client.reloaded is False
+
+
 class FakeUpdateLuciRpcClient:
     def __init__(self) -> None:
         self.update_target = None
