@@ -4,16 +4,18 @@
  > ^ <
 ```
 
-> 🧭 AI-native OpenClash 远程管理命令行工具
+> 🧭 面向 OpenClash 的远程管理 CLI
 
-`opclash_cli` 是一个面向 OpenClash 的 Python 3.11 CLI，聚焦远程管理、订阅切换、节点切换、服务控制与基础诊断。
+`opclash_cli` 是一个 Python 3.11 命令行工具，用于远程管理 OpenClash，覆盖订阅、节点、服务和基础诊断。
 
 ## ✨ 特性
 
-- 统一入口，覆盖 `init`、`nodes`、`subscription`、`service`、`doctor`
-- 输出结构化 JSON，支持脚本集成与自动化调用
-- 读写命令边界清晰，常用操作保持简洁直接
-- 面向 AI Agent、终端脚本和日常运维场景
+- 一体化远程控制：初始化、连通性检查和配置变更都在同一个 CLI 中完成
+- 订阅管理完整：支持新增、启停、更新、重命名、删除与本地归档
+- 节点切换更稳妥：可先查看节点组与测速结果，再执行切换
+- 服务与诊断闭环：重载或重启后可立即复核状态，并查看网络、配置、日志信息
+- 结构化输出友好：默认 JSON，便于脚本、CI 和 AI Agent 直接消费
+- 安全与审计可控：凭据本地保存，修改类操作支持确认与 `--dry-run`
 
 ## 📦 安装
 
@@ -21,7 +23,6 @@
 
 - Python `3.11+`
 - 可访问 OpenClash Controller 与 LuCI RPC
-- 使用虚拟环境
 
 普通安装：
 
@@ -78,17 +79,6 @@ opclash_cli nodes groups
 opclash_cli subscription switch \
   --config /etc/openclash/config/example.yaml
 ```
-
-## ⚡ 常用子命令
-
-- `opclash_cli init check`
-- `opclash_cli nodes groups`
-- `opclash_cli nodes speedtest --group HK --limit 10`
-- `opclash_cli subscription list`
-- `opclash_cli subscription update --name west2`
-- `opclash_cli subscription switch --config /etc/openclash/config/example.yaml`
-- `opclash_cli service restart --yes`
-- `opclash_cli doctor logs --limit 20`
 
 ## 🛠️ 命令一览
 
