@@ -203,6 +203,59 @@ def _suggested_commands(summary: dict, target: dict) -> list[dict]:
     return commands
 
 
+_OPENCLASH_FIREWALL_CHAINS = ("openclash", "openclash_mangle")
+
+
+def _check_openclash_firewall_chains(client: LuciRpcClient) -> dict:
+    chains = {}
+    for chain in _OPENCLASH_FIREWALL_CHAINS:
+        command = (
+            f"nft list chain inet fw4 {shlex.quote(chain)} >/dev/null 2>&1 "
+            "&& printf present || printf missing"
+        )
+        try:
+            chains[chain] = client.service_exec(command, timeout=10).strip() == "present"
+        except Exception:
+            chains[chain] = False
+    return {"healthy": all(chains.values()), "chains": chains}
+
+
+def _repair_openclash_firewall_if_needed(client: LuciRpcClient) -> dict:
+    before = _check_openclash_firewall_chains(client)
+    result = {
+        "checked": True,
+        "status": "healthy" if before["healthy"] else "missing_chains",
+        "repaired": False,
+        "before": before,
+        "after": before,
+        "repair_command": None,
+    }
+    if before["healthy"]:
+        return result
+
+    repair_command = "/etc/init.d/openclash reload manual"
+    try:
+        client.service_exec(repair_command, timeout=60)
+    except Exception as error:
+        after = _check_openclash_firewall_chains(client)
+        return {
+            **result,
+            "status": "repair_failed",
+            "after": after,
+            "repair_command": repair_command,
+            "repair_error": type(error).__name__,
+        }
+
+    after = _check_openclash_firewall_chains(client)
+    return {
+        **result,
+        "status": "repaired" if after["healthy"] else "still_missing_chains",
+        "repaired": after["healthy"],
+        "after": after,
+        "repair_command": repair_command,
+    }
+
+
 def find_subscription(payload: dict, name: str) -> dict:
     for subscription in summarize_subscriptions(payload, redact_addresses=False):
         if subscription["name"] == name:
@@ -501,6 +554,8 @@ def update_subscription(name: str | None, config: str | None, progress: Callable
 
     refreshed = client.get_openclash_uci()
     summary = _summarize_outcomes(items)
+    notify("Checking OpenClash firewall rules")
+    firewall = _repair_openclash_firewall_if_needed(client)
     notify(
         "Subscription update finished: "
         f"{summary['updated_count']} updated, "
@@ -514,6 +569,7 @@ def update_subscription(name: str | None, config: str | None, progress: Callable
         "summary": summary,
         "before": before,
         "after": {"config_path": refreshed["config"]["config_path"]},
+        "firewall": firewall,
         "suggested_commands": _suggested_commands(summary, target_details),
         "audit": None,
     }

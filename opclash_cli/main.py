@@ -495,6 +495,7 @@ def main(argv: list[str] | None = None) -> int:
                         "summary": result["summary"],
                         "before": result["before"],
                         "after": result["after"],
+                        "firewall": result["firewall"],
                         "suggested_commands": result["suggested_commands"],
                     },
                     audit=result["audit"],

@@ -91,6 +91,7 @@ def test_switch_config_is_noop_success_when_target_is_already_active(monkeypatch
 class FakeUpdateLuciRpcClient:
     def __init__(self) -> None:
         self.update_target = None
+        self.service_exec_calls = []
         self._config_list_calls = 0
         self._log_reads = 0
         self._before_log = "existing log line\n"
@@ -156,6 +157,12 @@ class FakeUpdateLuciRpcClient:
         if self._log_reads == 1:
             return self._before_log
         return self._after_log
+
+    def service_exec(self, command: str, timeout: int = 10) -> str:
+        self.service_exec_calls.append(command)
+        if "nft list chain inet fw4" in command:
+            return "present\n"
+        return "ok"
 
 
 def test_update_subscription_without_target_updates_all(monkeypatch):
@@ -223,6 +230,37 @@ def test_update_subscription_by_name_targets_single_subscription(monkeypatch):
     ]
     assert result["summary"]["overall_status"] == "success"
     assert result["suggested_commands"] == []
+
+
+class FakeMissingFirewallLuciRpcClient(FakeUpdateLuciRpcClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.manual_reload_calls = 0
+
+    def service_exec(self, command: str, timeout: int = 10) -> str:
+        self.service_exec_calls.append(command)
+        if command == "/etc/init.d/openclash reload manual":
+            self.manual_reload_calls += 1
+            return "manual reload ok"
+        if "nft list chain inet fw4 openclash_mangle" in command and self.manual_reload_calls == 0:
+            return "missing\n"
+        if "nft list chain inet fw4" in command:
+            return "present\n"
+        return "ok"
+
+
+def test_update_subscription_repairs_missing_firewall_chains(monkeypatch):
+    fake_client = FakeMissingFirewallLuciRpcClient()
+    monkeypatch.setattr(subscription_commands, "LuciRpcClient", lambda: fake_client)
+
+    result = subscription_commands.update_subscription("west2", None)
+
+    assert fake_client.manual_reload_calls == 1
+    assert result["firewall"]["status"] == "repaired"
+    assert result["firewall"]["repaired"] is True
+    assert result["firewall"]["before"]["chains"]["openclash"] is True
+    assert result["firewall"]["before"]["chains"]["openclash_mangle"] is False
+    assert result["firewall"]["after"]["chains"]["openclash_mangle"] is True
 
 
 def test_update_subscription_rejects_missing_subscription_name(monkeypatch):

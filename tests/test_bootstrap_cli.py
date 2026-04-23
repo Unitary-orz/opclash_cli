@@ -51,6 +51,7 @@ def test_mutation_commands_do_not_require_reason(capsys, monkeypatch):
             "summary": {"overall_status": "success", "total": 0, "updated_count": 0, "unchanged_count": 0, "failed_count": 0, "skipped_count": 0},
             "before": {"config_path": "/etc/openclash/config/current.yaml"},
             "after": {"config_path": "/etc/openclash/config/current.yaml"},
+            "firewall": {"checked": True, "status": "healthy", "repaired": False},
             "suggested_commands": [],
             "audit": None,
         },
@@ -96,6 +97,35 @@ def test_mutation_commands_do_not_require_reason(capsys, monkeypatch):
         payload = json.loads(capsys.readouterr().out)
         assert exit_code == 0
         assert payload["ok"] is True
+
+
+def test_subscription_update_returns_firewall_repair_status(capsys, monkeypatch):
+    monkeypatch.setattr(
+        "opclash_cli.main.update_subscription",
+        lambda name, config, progress=None: {
+            "target": {"mode": "all"},
+            "items": [],
+            "summary": {
+                "overall_status": "success",
+                "total": 0,
+                "updated_count": 0,
+                "unchanged_count": 0,
+                "failed_count": 0,
+                "skipped_count": 0,
+            },
+            "before": {"config_path": "/etc/openclash/config/current.yaml"},
+            "after": {"config_path": "/etc/openclash/config/current.yaml"},
+            "firewall": {"checked": True, "status": "repaired", "repaired": True},
+            "suggested_commands": [],
+            "audit": None,
+        },
+    )
+
+    exit_code = main(["sub", "update", "--yes"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["data"]["firewall"] == {"checked": True, "status": "repaired", "repaired": True}
 
 
 def test_doctor_logs_returns_local_operation_log(capsys, monkeypatch):
@@ -269,6 +299,7 @@ def test_subscription_update_writes_progress_to_stderr(capsys, monkeypatch):
             },
             "before": {"config_path": "/etc/openclash/config/current.yaml"},
             "after": {"config_path": "/etc/openclash/config/current.yaml"},
+            "firewall": {"checked": True, "status": "healthy", "repaired": False},
             "suggested_commands": [],
             "audit": None,
         }
