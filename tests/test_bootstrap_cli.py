@@ -80,13 +80,13 @@ def test_mutation_commands_do_not_require_reason(capsys, monkeypatch):
 
     commands = [
         ["nodes", "switch", "--group", "Apple", "--target", "DIRECT"],
-        ["subscription", "add", "--name", "west2", "--url", "https://example/sub"],
-        ["subscription", "update"],
-        ["subscription", "switch", "--config", "/etc/openclash/config/west2.yaml"],
-        ["subscription", "remove", "--name", "west2"],
-        ["subscription", "enable", "--name", "west2"],
-        ["subscription", "disable", "--name", "west2"],
-        ["subscription", "rename", "--name", "west2", "--to", "west2-main"],
+        ["sub", "add", "--name", "west2", "--url", "https://example/sub"],
+        ["sub", "update"],
+        ["sub", "switch", "--config", "/etc/openclash/config/west2.yaml"],
+        ["sub", "remove", "--name", "west2"],
+        ["sub", "enable", "--name", "west2"],
+        ["sub", "disable", "--name", "west2"],
+        ["sub", "rename", "--name", "west2", "--to", "west2-main"],
         ["service", "reload"],
         ["service", "restart"],
     ]
@@ -200,11 +200,11 @@ def test_subscription_remove_returns_archive_path(capsys, monkeypatch):
         lambda name: {"removed": {"name": name}, "archive": {"path": "/tmp/archive.jsonl"}, "audit": None},
     )
 
-    exit_code = main(["subscription", "remove", "--name", "west2"])
+    exit_code = main(["sub", "remove", "--name", "west2"])
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 0
-    assert payload["command"] == "subscription remove"
+    assert payload["command"] == "sub remove"
     assert payload["data"] == {"removed": {"name": "west2"}, "archive": {"path": "/tmp/archive.jsonl"}}
 
 
@@ -226,12 +226,12 @@ def test_root_help_includes_command_descriptions(capsys):
     output = capsys.readouterr().out
     assert "Remote OpenClash management CLI" in output
     assert "init                write or inspect local connection config" in output
-    assert "subscription        manage subscriptions and config switching" in output
+    assert "sub                 manage subscriptions and config switching" in output
 
 
 def test_subscription_help_includes_subcommand_descriptions(capsys):
     try:
-        main(["subscription", "--help"])
+        main(["sub", "--help"])
     except SystemExit as error:
         assert error.code == 0
 
@@ -240,6 +240,16 @@ def test_subscription_help_includes_subcommand_descriptions(capsys):
     assert "remove              remove subscription and archive locally" in output
     assert "enable              enable subscription updates" in output
     assert "rename              rename subscription" in output
+
+
+def test_subscription_command_is_removed(capsys):
+    try:
+        main(["subscription", "--help"])
+    except SystemExit as error:
+        assert error.code == 2
+
+    stderr = capsys.readouterr().err
+    assert "invalid choice: 'subscription'" in stderr
 
 
 def test_confirmation_can_abort_mutation(capsys, monkeypatch):

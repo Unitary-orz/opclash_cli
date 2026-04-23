@@ -1,9 +1,9 @@
 ---
-name: opclash_cli
+name: opclash_cli_skill
 description: Use when operating OpenClash remotely with this repository CLI, especially for diagnosis, subscription switching, node switching, reload, or restart workflows that need ordered verification.
 ---
 
-# opclash_cli
+# opclash_cli_skill
 
 ## Overview
 
@@ -24,7 +24,7 @@ If preflight fails, do not continue with switch/reload/restart commands.
 
 Use fixed flows:
 
-- Subscription flow: `init check` -> `subscription list` -> `subscription current` -> `subscription configs`
+- Subscription flow: `init check` -> `sub list` -> `sub current` -> `sub configs`
 - Node flow: `init check` -> `nodes groups` -> `nodes group --name ...`
 - Service/Network diagnosis: `init check` -> `service status` -> `doctor network` -> `doctor config`
 
@@ -32,13 +32,13 @@ Use fixed flows:
 
 - Every mutation command must include `--reason`.
 - After `nodes switch`, rerun `nodes group --name ...` to confirm active node state.
-- After `subscription switch`, rerun `subscription current` and `service status`.
+- After `sub switch`, rerun `sub current` and `service status`.
 - After `service reload` or `service restart`, rerun `service status`.
 
 ## Quick commands
 
 ```bash
-opclash_cli subscription current
+opclash_cli sub current
 opclash_cli nodes group --name <group_name>
 opclash_cli service status
 opclash_cli doctor network

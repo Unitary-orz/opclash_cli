@@ -39,13 +39,13 @@ from opclash_cli.output import emit, fail, ok
 _MUTATING_COMMANDS = {
     "init",
     "nodes switch",
-    "subscription add",
-    "subscription remove",
-    "subscription enable",
-    "subscription disable",
-    "subscription rename",
-    "subscription update",
-    "subscription switch",
+    "sub add",
+    "sub remove",
+    "sub enable",
+    "sub disable",
+    "sub rename",
+    "sub update",
+    "sub switch",
     "service reload",
     "service restart",
 }
@@ -106,40 +106,40 @@ def build_parser() -> argparse.ArgumentParser:
     switch_parser.add_argument("--group", required=True, help="proxy group name")
     switch_parser.add_argument("--target", required=True, help="target node name")
 
-    subscription_parser = subparsers.add_parser(
-        "subscription",
+    sub_parser = subparsers.add_parser(
+        "sub",
         help="manage subscriptions and config switching",
         description="Manage subscriptions and config switching.",
     )
-    subscription_subparsers = subscription_parser.add_subparsers(dest="subscription_command")
-    subscription_subparsers.add_parser("list", help="list subscriptions", description="List subscriptions.")
-    subscription_subparsers.add_parser("current", help="show current config path", description="Show current config path.")
-    add_parser = subscription_subparsers.add_parser("add", help="add subscription", description="Add subscription.")
+    sub_subparsers = sub_parser.add_subparsers(dest="sub_command")
+    sub_subparsers.add_parser("list", help="list subscriptions", description="List subscriptions.")
+    sub_subparsers.add_parser("current", help="show current config path", description="Show current config path.")
+    add_parser = sub_subparsers.add_parser("add", help="add subscription", description="Add subscription.")
     _add_mutation_flags(add_parser)
     add_parser.add_argument("--name", required=True, help="subscription name")
     add_parser.add_argument("--url", required=True, help="subscription URL")
-    remove_parser = subscription_subparsers.add_parser(
+    remove_parser = sub_subparsers.add_parser(
         "remove",
         help="remove subscription and archive locally",
         description="Remove subscription and archive locally.",
     )
     _add_mutation_flags(remove_parser)
     remove_parser.add_argument("--name", required=True, help="subscription name")
-    enable_parser = subscription_subparsers.add_parser(
+    enable_parser = sub_subparsers.add_parser(
         "enable",
         help="enable subscription updates",
         description="Enable subscription updates.",
     )
     _add_mutation_flags(enable_parser)
     enable_parser.add_argument("--name", required=True, help="subscription name")
-    disable_parser = subscription_subparsers.add_parser(
+    disable_parser = sub_subparsers.add_parser(
         "disable",
         help="disable subscription updates",
         description="Disable subscription updates.",
     )
     _add_mutation_flags(disable_parser)
     disable_parser.add_argument("--name", required=True, help="subscription name")
-    rename_parser = subscription_subparsers.add_parser(
+    rename_parser = sub_subparsers.add_parser(
         "rename",
         help="rename subscription",
         description="Rename subscription.",
@@ -147,7 +147,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_mutation_flags(rename_parser)
     rename_parser.add_argument("--name", required=True, help="current subscription name")
     rename_parser.add_argument("--to", required=True, help="new subscription name")
-    update_parser = subscription_subparsers.add_parser(
+    update_parser = sub_subparsers.add_parser(
         "update",
         help="update subscriptions or one config",
         description="Update subscriptions or one config.",
@@ -156,13 +156,13 @@ def build_parser() -> argparse.ArgumentParser:
     update_target_group = update_parser.add_mutually_exclusive_group()
     update_target_group.add_argument("--name", help="subscription name")
     update_target_group.add_argument("--config", help="full config path on remote host")
-    configs_parser = subscription_subparsers.add_parser(
+    configs_parser = sub_subparsers.add_parser(
         "configs",
         help="list remote config files",
         description="List remote config files.",
     )
     configs_parser.add_argument("--directory", default="/etc/openclash/config", help="remote config directory")
-    switch_parser = subscription_subparsers.add_parser(
+    switch_parser = sub_subparsers.add_parser(
         "switch",
         help="switch active config file",
         description="Switch active config file.",
@@ -209,8 +209,8 @@ def _command_name(args: argparse.Namespace) -> str:
         return "init" if args.init_command is None else f"init {args.init_command}"
     if args.command == "nodes":
         return f"nodes {args.nodes_command}"
-    if args.command == "subscription":
-        return f"subscription {args.subscription_command}"
+    if args.command == "sub":
+        return f"sub {args.sub_command}"
     if args.command == "service":
         return f"service {args.service_command}"
     if args.command == "doctor":
@@ -248,7 +248,7 @@ def _completion_script(shell: str) -> str:
     nodes)
       COMPREPLY=( $(compgen -W "groups providers group switch speedtest" -- "$cur") )
       ;;
-    subscription)
+    sub)
       COMPREPLY=( $(compgen -W "list current add update configs switch remove enable disable rename" -- "$cur") )
       ;;
     service)
@@ -261,7 +261,7 @@ def _completion_script(shell: str) -> str:
       COMPREPLY=( $(compgen -W "bash zsh" -- "$cur") )
       ;;
     *)
-      COMPREPLY=( $(compgen -W "init nodes subscription service doctor version completion" -- "$cur") )
+      COMPREPLY=( $(compgen -W "init nodes sub service doctor version completion" -- "$cur") )
       ;;
   esac
 }
@@ -274,7 +274,7 @@ _opclash_cli() {
   commands=(
     'init:initialize local config'
     'nodes:node operations'
-    'subscription:subscription operations'
+    'sub:subscription operations'
     'service:service operations'
     'doctor:diagnostics'
     'version:show version'
@@ -290,8 +290,8 @@ _opclash_cli() {
         nodes)
           _values 'nodes commands' groups providers group switch speedtest
           ;;
-        subscription)
-          _values 'subscription commands' list current add update configs switch remove enable disable rename
+        sub)
+          _values 'sub commands' list current add update configs switch remove enable disable rename
           ;;
         service)
           _values 'service commands' status reload restart logs
@@ -324,19 +324,19 @@ def _dry_run_payload(args: argparse.Namespace) -> dict:
         }
     elif command == "nodes switch":
         params = {"group": args.group, "target": args.target}
-    elif command == "subscription add":
+    elif command == "sub add":
         params = {"name": args.name, "url": args.url}
-    elif command == "subscription remove":
+    elif command == "sub remove":
         params = {"name": args.name}
-    elif command == "subscription enable":
+    elif command == "sub enable":
         params = {"name": args.name}
-    elif command == "subscription disable":
+    elif command == "sub disable":
         params = {"name": args.name}
-    elif command == "subscription rename":
+    elif command == "sub rename":
         params = {"name": args.name, "to": args.to}
-    elif command == "subscription update":
+    elif command == "sub update":
         params = {"name": args.name, "config": args.config}
-    elif command == "subscription switch":
+    elif command == "sub switch":
         params = {"config": args.config}
     else:
         params = {}
@@ -430,50 +430,50 @@ def main(argv: list[str] | None = None) -> int:
             emit(ok("nodes switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
             return 0
 
-        if args.command == "subscription" and args.subscription_command == "list":
-            emit(ok("subscription list", list_subscriptions()))
+        if args.command == "sub" and args.sub_command == "list":
+            emit(ok("sub list", list_subscriptions()))
             return 0
 
-        if args.command == "subscription" and args.subscription_command == "current":
-            emit(ok("subscription current", current_config()))
+        if args.command == "sub" and args.sub_command == "current":
+            emit(ok("sub current", current_config()))
             return 0
 
-        if args.command == "subscription" and args.subscription_command == "configs":
+        if args.command == "sub" and args.sub_command == "configs":
             from opclash_cli.commands.subscription import config_files
 
-            emit(ok("subscription configs", config_files(args.directory)))
+            emit(ok("sub configs", config_files(args.directory)))
             return 0
 
-        if args.command == "subscription" and args.subscription_command == "add":
+        if args.command == "sub" and args.sub_command == "add":
             result = add_subscription(args.name, args.url)
-            emit(ok("subscription add", {"subscription": result["subscription"]}, audit=result["audit"]))
+            emit(ok("sub add", {"subscription": result["subscription"]}, audit=result["audit"]))
             return 0
 
-        if args.command == "subscription" and args.subscription_command == "remove":
+        if args.command == "sub" and args.sub_command == "remove":
             result = remove_subscription(args.name)
-            emit(ok("subscription remove", {"removed": result["removed"], "archive": result["archive"]}, audit=result["audit"]))
+            emit(ok("sub remove", {"removed": result["removed"], "archive": result["archive"]}, audit=result["audit"]))
             return 0
 
-        if args.command == "subscription" and args.subscription_command == "enable":
+        if args.command == "sub" and args.sub_command == "enable":
             result = enable_subscription(args.name)
-            emit(ok("subscription enable", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
+            emit(ok("sub enable", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
             return 0
 
-        if args.command == "subscription" and args.subscription_command == "disable":
+        if args.command == "sub" and args.sub_command == "disable":
             result = disable_subscription(args.name)
-            emit(ok("subscription disable", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
+            emit(ok("sub disable", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
             return 0
 
-        if args.command == "subscription" and args.subscription_command == "rename":
+        if args.command == "sub" and args.sub_command == "rename":
             result = rename_subscription(args.name, args.to)
-            emit(ok("subscription rename", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
+            emit(ok("sub rename", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
             return 0
 
-        if args.command == "subscription" and args.subscription_command == "update":
+        if args.command == "sub" and args.sub_command == "update":
             result = update_subscription(args.name, args.config)
             emit(
                 ok(
-                    "subscription update",
+                    "sub update",
                     {
                         "target": result["target"],
                         "items": result["items"],
@@ -487,9 +487,9 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
 
-        if args.command == "subscription" and args.subscription_command == "switch":
+        if args.command == "sub" and args.sub_command == "switch":
             result = switch_config(args.config)
-            emit(ok("subscription switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
+            emit(ok("sub switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
             return 0
 
         if args.command == "service" and args.service_command == "status":

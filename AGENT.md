@@ -11,7 +11,7 @@ The codebase is intentionally small and command-oriented:
 - `opclash_cli/local_config.py`: local config persistence and lookup
 - `opclash_cli/output.py`: structured CLI output helpers
 - `tests/`: command and behavior coverage
-- `skills/opclash_cli/SKILL.md`: project-specific skill instructions
+- `skills/opclash_cli_skill/SKILL.md`: project-specific skill instructions
 
 ## Working Rules
 
@@ -40,7 +40,7 @@ If the editable install is not needed, direct module execution is preferred duri
 - For new CLI capabilities, wire arguments in `opclash_cli/main.py` first, then implement command behavior in the matching module under `opclash_cli/commands/`.
 - Keep adapter logic out of the CLI entrypoint.
 - Prefer simple return dictionaries from command functions so `output.py` remains the single place responsible for final emission.
-- Match existing naming patterns such as `service status`, `nodes switch`, and `subscription add`.
+- Match existing naming patterns such as `service status`, `nodes switch`, and `sub add`.
 
 ## Testing Expectations
 

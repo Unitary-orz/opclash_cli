@@ -48,6 +48,13 @@ python3 -m pip install -e .[dev]
 python3 -m opclash_cli.main --help
 ```
 
+## 🧩 Skill 安装
+
+```bash
+mkdir -p ~/.codex/skills
+cp -r ./skills/opclash_cli_skill ~/.codex/skills/
+```
+
 ## 🚀 快速开始
 
 1. 初始化本地连接配置
@@ -76,7 +83,7 @@ opclash_cli nodes groups
 4. 切换订阅配置
 
 ```bash
-opclash_cli subscription switch \
+opclash_cli sub switch \
   --config /etc/openclash/config/example.yaml
 ```
 
@@ -89,13 +96,13 @@ opclash_cli subscription switch \
 | 节点 | `nodes group` | 查看指定组详情 | `opclash_cli nodes group --name HK` |
 | 节点 | `nodes switch` | 切换组内节点 | `opclash_cli nodes switch --group Apple --target DIRECT` |
 | 节点 | `nodes speedtest` | 调用 Clash 自带测速并排序 | `opclash_cli nodes speedtest --group HK --limit 10` |
-| 订阅 | `subscription list` | 查看订阅列表 | `opclash_cli subscription list` |
-| 订阅 | `subscription add` | 新增订阅源 | `opclash_cli subscription add --name west2 --url https://example/sub` |
-| 订阅 | `subscription enable/disable` | 控制订阅是否参与更新 | `opclash_cli subscription enable --name west2` |
-| 订阅 | `subscription rename` | 调整订阅显示名 | `opclash_cli subscription rename --name west2 --to west2-main` |
-| 订阅 | `subscription remove` | 删除订阅并写入本地归档 | `opclash_cli subscription remove --name west2` |
-| 订阅 | `subscription update` | 更新订阅 | `opclash_cli subscription update --name west2` |
-| 订阅 | `subscription switch` | 切换远端配置文件 | `opclash_cli subscription switch --config /etc/openclash/config/example.yaml` |
+| 订阅 | `sub list` | 查看订阅列表 | `opclash_cli sub list` |
+| 订阅 | `sub add` | 新增订阅源 | `opclash_cli sub add --name west2 --url https://example/sub` |
+| 订阅 | `sub enable/disable` | 控制订阅是否参与更新 | `opclash_cli sub enable --name west2` |
+| 订阅 | `sub rename` | 调整订阅显示名 | `opclash_cli sub rename --name west2 --to west2-main` |
+| 订阅 | `sub remove` | 删除订阅并写入本地归档 | `opclash_cli sub remove --name west2` |
+| 订阅 | `sub update` | 更新订阅 | `opclash_cli sub update --name west2` |
+| 订阅 | `sub switch` | 切换远端配置文件 | `opclash_cli sub switch --config /etc/openclash/config/example.yaml` |
 | 服务 | `service status` | 查看 OpenClash 服务状态 | `opclash_cli service status` |
 | 服务 | `service reload/restart` | 重载或重启服务 | `opclash_cli service restart --yes` |
 | 诊断 | `doctor` | 执行基础诊断与日志查看 | `opclash_cli doctor logs --limit 20` |
@@ -120,13 +127,13 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 1. 安装 CLI
 2. 执行 `opclash_cli init ...` 写入连接配置
 3. 执行 `opclash_cli init check` 验证 Controller 与 LuCI RPC
-4. 再执行 `nodes`、`subscription`、`service` 等操作命令
+4. 再执行 `nodes`、`sub`、`service` 等操作命令
 
 说明：
 
-- `subscription switch --config` 需要传入远端 OpenClash 主机上的完整配置路径
-- `subscription enable/disable` 只影响该订阅是否参与更新，不直接切换当前运行配置
-- 支持同时启用多个订阅；OpenClash 当前生效的配置仍由 `subscription current` / `subscription switch` 决定
+- `sub switch --config` 需要传入远端 OpenClash 主机上的完整配置路径
+- `sub enable/disable` 只影响该订阅是否参与更新，不直接切换当前运行配置
+- 支持同时启用多个订阅；OpenClash 当前生效的配置仍由 `sub current` / `sub switch` 决定
 - `service logs` 读取的是远端 `/tmp/openclash.log`
 - `doctor logs` 读取的是本地 CLI 操作日志
 
@@ -170,11 +177,6 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 - [贡献指南](./CONTRIBUTING.md)
 - [安全说明](./SECURITY.md)
 - [许可证](./LICENSE)
-
-## 🏷️ 版本与补全
-
-- 版本：`opclash_cli version` 或 `opclash_cli --version`
-- 补全：`opclash_cli completion bash` / `opclash_cli completion zsh`
 
 ## 🧪 开发
 

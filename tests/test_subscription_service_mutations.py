@@ -168,7 +168,7 @@ def test_update_subscription_without_target_updates_all(monkeypatch):
             "purpose": "查看 OpenClash 最近的订阅更新日志",
         },
         {
-            "command": "opclash_cli subscription list",
+            "command": "opclash_cli sub list",
             "purpose": "确认失败项对应的订阅名称和地址",
         },
     ]

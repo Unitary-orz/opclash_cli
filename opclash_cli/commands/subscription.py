@@ -165,7 +165,7 @@ def _suggested_commands(summary: dict, target: dict) -> list[dict]:
     if target["mode"] == "all":
         commands.append(
             {
-                "command": "opclash_cli subscription list",
+                "command": "opclash_cli sub list",
                 "purpose": "确认失败项对应的订阅名称和地址",
             }
         )
