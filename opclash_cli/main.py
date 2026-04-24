@@ -73,13 +73,13 @@ def build_parser() -> argparse.ArgumentParser:
     _add_mutation_flags(init_parser)
     init_parser.add_argument("--controller-url", help="Clash controller URL")
     init_parser.add_argument("--controller-secret", help="Clash controller secret")
-    init_parser.add_argument("--management-url", help="OpenWrt management URL or base host")
-    init_parser.add_argument("--management-username", help="OpenWrt management username")
-    init_parser.add_argument("--management-password", help="OpenWrt management password")
+    init_parser.add_argument("--management-url", help="advanced remote management URL or base host")
+    init_parser.add_argument("--management-username", help="advanced remote management username")
+    init_parser.add_argument("--management-password", help="advanced remote management password")
     init_parser.add_argument(
         "--management-insecure",
         action="store_true",
-        help="disable OpenWrt management SSL certificate verification",
+        help="disable advanced remote management SSL certificate verification",
     )
     init_subparsers = init_parser.add_subparsers(dest="init_command")
     init_subparsers.add_parser("show", help="show masked local config", description="Show masked local config.")

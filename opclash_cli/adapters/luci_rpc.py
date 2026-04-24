@@ -10,6 +10,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import requests
 
+from opclash_cli.errors import CliError
 from opclash_cli.local_config import load_config
 
 
@@ -44,6 +45,16 @@ def _wrap_ssl_error(error: requests.exceptions.SSLError) -> requests.exceptions.
         "If your router uses a self-signed certificate, set "
         "OPENCLASH_MANAGEMENT_SSL_VERIFY=0 or re-run init with --management-insecure."
     )
+
+
+def _management_guidance(code: str, message: str, details: dict | None = None) -> CliError:
+    payload = {
+        "recommended_mode": "local-management",
+        "guidance": "This command is best run locally on the router, or configure advanced remote management explicitly.",
+    }
+    if details:
+        payload.update(details)
+    return CliError(code, message, payload)
 
 
 def _candidate_backends(url: str) -> list[tuple[str, str]]:
@@ -265,6 +276,24 @@ class _UbusJsonRpcBackend:
             raise _wrap_ssl_error(error) from error
         response.raise_for_status()
         result = response.json()["result"]
+        if not isinstance(result, list) or not result:
+            raise _management_guidance(
+                "MANAGEMENT_UNAVAILABLE",
+                "Remote management returned an unexpected ubus login response.",
+                {"backend": "ubus"},
+            )
+        if result[0] != 0:
+            raise _management_guidance(
+                "MANAGEMENT_AUTH_FAILED",
+                "Remote management login was denied.",
+                {"backend": "ubus", "status": result[0]},
+            )
+        if len(result) < 2 or "ubus_rpc_session" not in result[1]:
+            raise _management_guidance(
+                "MANAGEMENT_UNAVAILABLE",
+                "Remote management did not return a usable ubus session.",
+                {"backend": "ubus"},
+            )
         self._token = result[1]["ubus_rpc_session"]
         return self._token
 
@@ -363,8 +392,13 @@ class LuciRpcClient:
         if self._should_use_local_backend():
             self._backend = _OpenWrtLocalBackend()
             self.backend_name = "local"
-            self.backend_url = config.url
+            self.backend_url = config.url if config is not None else "local://openwrt"
         else:
+            if config is None:
+                raise _management_guidance(
+                    "MANAGEMENT_NOT_CONFIGURED",
+                    "Remote management is not configured.",
+                )
             self._backend, self.backend_name, self.backend_url = self._select_remote_backend(config, session)
 
     def _should_use_local_backend(self) -> bool:
@@ -372,6 +406,8 @@ class LuciRpcClient:
 
     def _select_remote_backend(self, config, session: requests.Session | None):
         last_error: Exception | None = None
+        attempts: list[dict] = []
+        auth_error: CliError | None = None
         for backend_name, candidate_url in _candidate_backends(config.url):
             if backend_name == "ubus":
                 backend = _UbusJsonRpcBackend(
@@ -392,20 +428,42 @@ class LuciRpcClient:
             try:
                 backend.login()
                 return backend, backend_name, candidate_url
+            except CliError as error:
+                last_error = error
+                attempts.append({"backend": backend_name, "url": candidate_url, "code": error.code})
+                if error.code == "MANAGEMENT_AUTH_FAILED" and auth_error is None:
+                    auth_error = error
+                continue
             except requests.exceptions.SSLError:
                 raise
             except requests.exceptions.HTTPError as error:
                 last_error = error
                 status_code = getattr(error.response, "status_code", None)
+                attempts.append({"backend": backend_name, "url": candidate_url, "http_status": status_code})
                 if status_code in {404, 405}:
                     continue
                 continue
             except (KeyError, ValueError, RuntimeError, requests.exceptions.RequestException) as error:
                 last_error = error
+                attempts.append({"backend": backend_name, "url": candidate_url, "error": type(error).__name__})
                 continue
+        if auth_error is not None:
+            raise _management_guidance(
+                auth_error.code,
+                auth_error.message,
+                {"attempts": attempts},
+            )
         if last_error is not None:
-            raise last_error
-        raise RuntimeError("no usable OpenWrt management backend found")
+            raise _management_guidance(
+                "MANAGEMENT_UNAVAILABLE",
+                "Remote management is unavailable.",
+                {"attempts": attempts, "last_error": type(last_error).__name__},
+            )
+        raise _management_guidance(
+            "MANAGEMENT_UNAVAILABLE",
+            "No usable OpenWrt management backend was found.",
+            {"attempts": attempts},
+        )
 
     def get_openclash_uci(self) -> dict:
         return self._backend.get_openclash_uci()

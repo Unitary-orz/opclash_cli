@@ -36,6 +36,7 @@ def test_mask_secret_keeps_suffix():
 
 def test_init_command_writes_config_file(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENCLASH_CLI_CONFIG", str(tmp_path / "config.toml"))
+    monkeypatch.setattr(init_commands, "default_local_management_available", lambda: False)
 
     exit_code = main(
         [
@@ -62,6 +63,46 @@ def test_init_command_writes_config_file(tmp_path, monkeypatch):
     assert written["management"]["ssl_verify"] is False
 
 
+def test_init_command_defaults_to_local_management_on_router(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENCLASH_CLI_CONFIG", str(tmp_path / "config.toml"))
+    monkeypatch.setattr(init_commands, "default_local_management_available", lambda: True)
+
+    exit_code = main(
+        [
+            "init",
+            "--controller-url",
+            "http://router:9090",
+            "--controller-secret",
+            "controller-secret",
+        ]
+    )
+
+    written = tomllib.loads((tmp_path / "config.toml").read_text(encoding="utf-8"))
+    assert exit_code == 0
+    assert written["management"]["url"] == "local://openwrt"
+    assert written["management"]["username"] == ""
+    assert written["management"]["password"] == ""
+
+
+def test_init_command_defaults_to_controller_only_off_router(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENCLASH_CLI_CONFIG", str(tmp_path / "config.toml"))
+    monkeypatch.setattr(init_commands, "default_local_management_available", lambda: False)
+
+    exit_code = main(
+        [
+            "init",
+            "--controller-url",
+            "http://router:9090",
+            "--controller-secret",
+            "controller-secret",
+        ]
+    )
+
+    written = tomllib.loads((tmp_path / "config.toml").read_text(encoding="utf-8"))
+    assert exit_code == 0
+    assert "management" not in written
+
+
 def test_normalize_management_url_accepts_plain_host():
     assert normalize_management_url("http://192.168.31.166") == "http://192.168.31.166"
 
@@ -86,6 +127,19 @@ def test_load_config_allows_env_override_for_ssl_verify(tmp_path, monkeypatch):
     assert loaded.management.ssl_verify is False
 
 
+def test_load_config_supports_controller_only_config(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENCLASH_CLI_CONFIG", str(tmp_path / "config.toml"))
+    (tmp_path / "config.toml").write_text(
+        '[controller]\nurl = "http://router:9090"\nsecret = "controller-secret"\n',
+        encoding="utf-8",
+    )
+
+    loaded = load_config()
+
+    assert loaded.controller.url == "http://router:9090"
+    assert loaded.management is None
+
+
 def test_check_backends_reports_management_backend(monkeypatch):
     class FakeControllerClient:
         def get_configs(self):
@@ -106,6 +160,29 @@ def test_check_backends_reports_management_backend(monkeypatch):
         "controller_ok": True,
         "management_ok": True,
         "management_backend": "ubus",
+    }
+
+
+def test_check_backends_marks_management_unconfigured_when_not_present(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENCLASH_CLI_CONFIG", str(tmp_path / "config.toml"))
+    (tmp_path / "config.toml").write_text(
+        '[controller]\nurl = "http://router:9090"\nsecret = "controller-secret"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(init_commands, "default_local_management_available", lambda: False)
+
+    class FakeControllerClient:
+        def get_configs(self):
+            return ["/etc/openclash/config/test.yaml"]
+
+    monkeypatch.setattr(init_commands, "ControllerClient", FakeControllerClient)
+
+    result = init_commands.check_backends()
+
+    assert result == {
+        "controller_ok": True,
+        "management_ok": False,
+        "management_backend": "unconfigured",
     }
 
 

@@ -1,6 +1,8 @@
 import requests
+import pytest
 
 from opclash_cli.adapters.luci_rpc import LuciRpcClient, _LuciJsonRpcBackend, _UbusJsonRpcBackend
+from opclash_cli.errors import CliError
 
 
 class FakeResponse:
@@ -146,3 +148,14 @@ def test_luci_rpc_client_falls_back_from_luci_rpc_to_ubus(tmp_path, monkeypatch)
     assert uci == {"foo": {".type": "bar"}}
     assert session.calls[0]["url"] == "https://router/cgi-bin/luci/rpc/auth"
     assert session.calls[1]["url"] == "https://router/ubus"
+
+
+def test_ubus_backend_returns_cli_error_for_permission_denied():
+    session = FakeSession([FakeResponse(result=[6])])
+    backend = _UbusJsonRpcBackend("https://router/ubus", "root", "secret", verify=False, session=session)
+
+    with pytest.raises(CliError) as error:
+        backend.login()
+
+    assert error.value.code == "MANAGEMENT_AUTH_FAILED"
+    assert error.value.details["backend"] == "ubus"
