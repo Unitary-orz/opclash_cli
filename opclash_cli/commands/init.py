@@ -20,6 +20,7 @@ def show_config() -> dict:
             "url": config.luci.url,
             "username": config.luci.username,
             "password": mask_secret(config.luci.password),
+            "ssl_verify": config.luci.ssl_verify,
         },
     }
 
@@ -30,10 +31,11 @@ def write_config(
     luci_url: str,
     luci_username: str,
     luci_password: str,
+    luci_ssl_verify: bool = True,
 ) -> dict:
     config = AppConfig(
         controller=ControllerConfig(url=controller_url, secret=controller_secret),
-        luci=LuciConfig(url=luci_url, username=luci_username, password=luci_password),
+        luci=LuciConfig(url=luci_url, username=luci_username, password=luci_password, ssl_verify=luci_ssl_verify),
     )
     path = save_config(config)
     return {"config_path": str(path)}

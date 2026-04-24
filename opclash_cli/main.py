@@ -76,6 +76,7 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--luci-url", help="LuCI RPC base URL")
     init_parser.add_argument("--luci-username", help="LuCI username")
     init_parser.add_argument("--luci-password", help="LuCI password")
+    init_parser.add_argument("--luci-insecure", action="store_true", help="disable LuCI SSL certificate verification")
     init_subparsers = init_parser.add_subparsers(dest="init_command")
     init_subparsers.add_parser("show", help="show masked local config", description="Show masked local config.")
 
@@ -331,6 +332,7 @@ def _dry_run_payload(args: argparse.Namespace) -> dict:
             "luci_url": args.luci_url,
             "luci_username": args.luci_username,
             "luci_password": mask_secret(args.luci_password or ""),
+            "luci_insecure": args.luci_insecure,
             "config_path": str(config_path()),
         }
     elif command == "nodes switch":
@@ -404,6 +406,7 @@ def main(argv: list[str] | None = None) -> int:
                         args.luci_url,
                         args.luci_username,
                         args.luci_password,
+                        luci_ssl_verify=not args.luci_insecure,
                     ),
                 )
             )

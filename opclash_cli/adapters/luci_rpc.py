@@ -94,19 +94,34 @@ class _OpenWrtLocalBackend:
 
 
 class _LuciJsonRpcBackend:
-    def __init__(self, url: str, username: str, password: str, session: requests.Session | None = None) -> None:
+    def __init__(
+        self,
+        url: str,
+        username: str,
+        password: str,
+        verify: bool = True,
+        session: requests.Session | None = None,
+    ) -> None:
         self._url = url
         self._username = username
         self._password = password
         self._session = session or requests.Session()
+        self._session.verify = verify
         self._token: str | None = None
 
     def login(self) -> str:
-        response = self._session.post(
-            f"{self._url}/auth",
-            json={"id": 1, "method": "login", "params": [self._username, self._password]},
-            timeout=10,
-        )
+        try:
+            response = self._session.post(
+                f"{self._url}/auth",
+                json={"id": 1, "method": "login", "params": [self._username, self._password]},
+                timeout=10,
+            )
+        except requests.exceptions.SSLError as error:
+            raise requests.exceptions.SSLError(
+                f"{error}. LuCI RPC URL should usually end with /cgi-bin/luci/rpc. "
+                "If your router uses a self-signed certificate, set OPENCLASH_LUCI_SSL_VERIFY=0 "
+                "or re-run init with --luci-insecure."
+            ) from error
         response.raise_for_status()
         self._token = response.json()["result"]
         return self._token
@@ -178,7 +193,13 @@ class LuciRpcClient:
         if self._should_use_local_backend():
             self._backend = _OpenWrtLocalBackend()
         else:
-            self._backend = _LuciJsonRpcBackend(config.url, config.username, config.password, session=session)
+            self._backend = _LuciJsonRpcBackend(
+                config.url,
+                config.username,
+                config.password,
+                verify=config.ssl_verify,
+                session=session,
+            )
 
     def _should_use_local_backend(self) -> bool:
         return os.geteuid() == 0 and shutil.which("uci") is not None
