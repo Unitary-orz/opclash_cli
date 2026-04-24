@@ -22,7 +22,7 @@
 要求：
 
 - Python `3.11+`
-- 可访问 OpenClash Controller 与 LuCI RPC
+- 可访问 OpenClash Controller 与 OpenWrt 管理后端（本机、`/ubus` 或 LuCI RPC）
 
 普通安装：
 
@@ -63,9 +63,9 @@ cp -r ./skills/opclash_cli_skill ~/.codex/skills/
 python3 -m opclash_cli.main init \
   --controller-url http://127.0.0.1:9090 \
   --controller-secret your-secret \
-  --luci-url http://192.168.1.1/cgi-bin/luci \
-  --luci-username root \
-  --luci-password your-password
+  --management-url http://192.168.1.1 \
+  --management-username root \
+  --management-password your-password
 ```
 
 2. 检查后端连通性
@@ -126,7 +126,7 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 
 1. 安装 CLI
 2. 执行 `opclash_cli init ...` 写入连接配置
-3. 执行 `opclash_cli init check` 验证 Controller 与 LuCI RPC
+3. 执行 `opclash_cli init check` 验证 Controller 与 OpenWrt 管理后端
 4. 再执行 `nodes`、`sub`、`service` 等操作命令
 
 说明：
@@ -156,7 +156,8 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
   "timestamp": "2026-04-22T13:42:34.065661Z",
   "data": {
     "controller_ok": true,
-    "luci_ok": true
+    "management_ok": true,
+    "management_backend": "ubus"
   },
   "warnings": [],
   "audit": null,

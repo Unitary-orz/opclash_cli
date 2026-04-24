@@ -73,10 +73,14 @@ def build_parser() -> argparse.ArgumentParser:
     _add_mutation_flags(init_parser)
     init_parser.add_argument("--controller-url", help="Clash controller URL")
     init_parser.add_argument("--controller-secret", help="Clash controller secret")
-    init_parser.add_argument("--luci-url", help="LuCI RPC base URL")
-    init_parser.add_argument("--luci-username", help="LuCI username")
-    init_parser.add_argument("--luci-password", help="LuCI password")
-    init_parser.add_argument("--luci-insecure", action="store_true", help="disable LuCI SSL certificate verification")
+    init_parser.add_argument("--management-url", help="OpenWrt management URL or base host")
+    init_parser.add_argument("--management-username", help="OpenWrt management username")
+    init_parser.add_argument("--management-password", help="OpenWrt management password")
+    init_parser.add_argument(
+        "--management-insecure",
+        action="store_true",
+        help="disable OpenWrt management SSL certificate verification",
+    )
     init_subparsers = init_parser.add_subparsers(dest="init_command")
     init_subparsers.add_parser("show", help="show masked local config", description="Show masked local config.")
 
@@ -191,7 +195,11 @@ def build_parser() -> argparse.ArgumentParser:
     _add_mutation_flags(restart_parser)
     service_subparsers.add_parser("logs", help="show remote openclash log", description="Show remote openclash log.")
 
-    init_subparsers.add_parser("check", help="check controller and LuCI connectivity", description="Check controller and LuCI connectivity.")
+    init_subparsers.add_parser(
+        "check",
+        help="check controller and OpenWrt management connectivity",
+        description="Check controller and OpenWrt management connectivity.",
+    )
 
     doctor_parser = subparsers.add_parser(
         "doctor",
@@ -329,10 +337,10 @@ def _dry_run_payload(args: argparse.Namespace) -> dict:
         params = {
             "controller_url": args.controller_url,
             "controller_secret": mask_secret(args.controller_secret or ""),
-            "luci_url": args.luci_url,
-            "luci_username": args.luci_username,
-            "luci_password": mask_secret(args.luci_password or ""),
-            "luci_insecure": args.luci_insecure,
+            "management_url": args.management_url,
+            "management_username": args.management_username,
+            "management_password": mask_secret(args.management_password or ""),
+            "management_insecure": args.management_insecure,
             "config_path": str(config_path()),
         }
     elif command == "nodes switch":
@@ -403,10 +411,10 @@ def main(argv: list[str] | None = None) -> int:
                     write_config(
                         args.controller_url,
                         args.controller_secret,
-                        args.luci_url,
-                        args.luci_username,
-                        args.luci_password,
-                        luci_ssl_verify=not args.luci_insecure,
+                        args.management_url,
+                        args.management_username,
+                        args.management_password,
+                        management_ssl_verify=not args.management_insecure,
                     ),
                 )
             )

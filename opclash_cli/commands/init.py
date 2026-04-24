@@ -1,4 +1,4 @@
-from opclash_cli.local_config import AppConfig, ControllerConfig, LuciConfig, load_config, save_config
+from opclash_cli.local_config import AppConfig, ControllerConfig, ManagementConfig, load_config, save_config
 from opclash_cli.adapters.controller import ControllerClient
 from opclash_cli.adapters.luci_rpc import LuciRpcClient
 
@@ -16,11 +16,11 @@ def show_config() -> dict:
             "url": config.controller.url,
             "secret": mask_secret(config.controller.secret),
         },
-        "luci": {
-            "url": config.luci.url,
-            "username": config.luci.username,
-            "password": mask_secret(config.luci.password),
-            "ssl_verify": config.luci.ssl_verify,
+        "management": {
+            "url": config.management.url,
+            "username": config.management.username,
+            "password": mask_secret(config.management.password),
+            "ssl_verify": config.management.ssl_verify,
         },
     }
 
@@ -28,14 +28,19 @@ def show_config() -> dict:
 def write_config(
     controller_url: str,
     controller_secret: str,
-    luci_url: str,
-    luci_username: str,
-    luci_password: str,
-    luci_ssl_verify: bool = True,
+    management_url: str,
+    management_username: str,
+    management_password: str,
+    management_ssl_verify: bool = True,
 ) -> dict:
     config = AppConfig(
         controller=ControllerConfig(url=controller_url, secret=controller_secret),
-        luci=LuciConfig(url=luci_url, username=luci_username, password=luci_password, ssl_verify=luci_ssl_verify),
+        management=ManagementConfig(
+            url=management_url,
+            username=management_username,
+            password=management_password,
+            ssl_verify=management_ssl_verify,
+        ),
     )
     path = save_config(config)
     return {"config_path": str(path)}
@@ -46,8 +51,15 @@ def check_backends() -> dict:
         controller_ok = bool(ControllerClient().get_configs())
     except Exception:
         controller_ok = False
+    management_backend = "unavailable"
     try:
-        luci_ok = isinstance(LuciRpcClient().get_openclash_uci(), dict)
+        client = LuciRpcClient()
+        management_ok = isinstance(client.get_openclash_uci(), dict)
+        management_backend = getattr(client, "backend_name", "unknown")
     except Exception:
-        luci_ok = False
-    return {"controller_ok": controller_ok, "luci_ok": luci_ok}
+        management_ok = False
+    return {
+        "controller_ok": controller_ok,
+        "management_ok": management_ok,
+        "management_backend": management_backend,
+    }

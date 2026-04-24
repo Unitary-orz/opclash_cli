@@ -12,7 +12,7 @@ class ControllerConfig:
 
 
 @dataclass
-class LuciConfig:
+class ManagementConfig:
     url: str
     username: str
     password: str
@@ -22,7 +22,7 @@ class LuciConfig:
 @dataclass
 class AppConfig:
     controller: ControllerConfig
-    luci: LuciConfig
+    management: ManagementConfig
 
 
 def _env_bool(name: str) -> bool | None:
@@ -37,21 +37,19 @@ def _env_bool(name: str) -> bool | None:
     return None
 
 
-def normalize_luci_rpc_url(url: str) -> str:
+def normalize_management_url(url: str) -> str:
     if url.startswith("local://"):
         return url
     parsed = urlsplit(url)
     path = parsed.path.rstrip("/")
     if not path:
-        path = "/cgi-bin/luci/rpc"
-    elif path == "/cgi-bin/luci":
-        path = "/cgi-bin/luci/rpc"
+        path = ""
     elif path.endswith("/cgi-bin/luci/rpc"):
-        path = path
+        path = "/cgi-bin/luci/rpc"
     elif path.endswith("/cgi-bin/luci"):
-        path = f"{path}/rpc"
-    else:
-        path = f"{path}/cgi-bin/luci/rpc"
+        path = "/cgi-bin/luci"
+    elif path.endswith("/ubus"):
+        path = "/ubus"
     return urlunsplit((parsed.scheme, parsed.netloc, path, parsed.query, parsed.fragment))
 
 
@@ -67,11 +65,11 @@ def _dump_config(config: AppConfig) -> str:
         "[controller]\n"
         f'url = "{config.controller.url}"\n'
         f'secret = "{config.controller.secret}"\n\n'
-        "[luci]\n"
-        f'url = "{normalize_luci_rpc_url(config.luci.url)}"\n'
-        f'username = "{config.luci.username}"\n'
-        f'password = "{config.luci.password}"\n'
-        f"ssl_verify = {'true' if config.luci.ssl_verify else 'false'}\n"
+        "[management]\n"
+        f'url = "{normalize_management_url(config.management.url)}"\n'
+        f'username = "{config.management.username}"\n'
+        f'password = "{config.management.password}"\n'
+        f"ssl_verify = {'true' if config.management.ssl_verify else 'false'}\n"
     )
 
 
@@ -84,16 +82,16 @@ def save_config(config: AppConfig) -> Path:
 
 def load_config() -> AppConfig:
     data = tomllib.loads(config_path().read_text(encoding="utf-8"))
-    luci_data = dict(data["luci"])
-    luci_data["url"] = normalize_luci_rpc_url(luci_data["url"])
-    if "ssl_verify" not in luci_data:
-        luci_data["ssl_verify"] = True
-    env_ssl_verify = _env_bool("OPENCLASH_LUCI_SSL_VERIFY")
+    management_data = dict(data["management"])
+    management_data["url"] = normalize_management_url(management_data["url"])
+    if "ssl_verify" not in management_data:
+        management_data["ssl_verify"] = True
+    env_ssl_verify = _env_bool("OPENCLASH_MANAGEMENT_SSL_VERIFY")
     if env_ssl_verify is not None:
-        luci_data["ssl_verify"] = env_ssl_verify
+        management_data["ssl_verify"] = env_ssl_verify
     return AppConfig(
         controller=ControllerConfig(**data["controller"]),
-        luci=LuciConfig(**luci_data),
+        management=ManagementConfig(**management_data),
     )
 
 

@@ -23,6 +23,7 @@ def test_summarize_config_files_returns_name_size_and_mtime():
 def test_build_network_report_marks_both_backends_ok():
     result = build_network_report(True, True, True)
     assert result["status"] == "ok"
+    assert result["management_ok"] is True
 
 
 def test_ok_uses_real_utc_timestamp():
