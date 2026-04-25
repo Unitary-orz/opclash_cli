@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "opclash_cli"
-version = "0.3.0"
+version = "0.3.1"
 description = "OpenClash CLI: router-local UCI management and remote Clash Controller control"
 requires-python = ">=3.11"
 dependencies = [
