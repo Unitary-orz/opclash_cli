@@ -10,6 +10,28 @@ from opclash_cli.errors import CliError
 from opclash_cli.subscription_archive import archive_subscription
 
 
+STATUS_UPDATED = "updated"
+STATUS_UNCHANGED = "unchanged"
+STATUS_FAILED = "failed"
+STATUS_SKIPPED = "skipped"
+STATUS_OK = "ok"
+
+REASON_DISABLED = "disabled"
+REASON_MISSING_ADDRESS = "missing_address"
+REASON_USERINFO_NOT_FOUND = "subscription_userinfo_not_found"
+
+_UPDATE_SUCCESS_MARKER = "Update Successful!"
+_UPDATE_UNCHANGED_MARKER = "No Change, Do Nothing!"
+_UPDATE_ERROR_MARKERS = ("Update Error", "Subscribed Failed", "Download Failed", "Error:")
+
+
+def _iter_subscription_sections(payload: dict):
+    for section, item in payload.items():
+        if item.get(".type") != "config_subscribe":
+            continue
+        yield section, item
+
+
 def mask_subscription_address(address: str) -> str:
     if not address:
         return ""
@@ -21,9 +43,7 @@ def mask_subscription_address(address: str) -> str:
 
 def summarize_subscriptions(payload: dict, redact_addresses: bool = True) -> list[dict]:
     result = []
-    for section, item in payload.items():
-        if item.get(".type") != "config_subscribe":
-            continue
+    for section, item in _iter_subscription_sections(payload):
         address = item.get("address", "")
         result.append(
             {
@@ -38,9 +58,7 @@ def summarize_subscriptions(payload: dict, redact_addresses: bool = True) -> lis
 
 def _raw_subscription_entries(payload: dict) -> list[dict]:
     result = []
-    for section, item in payload.items():
-        if item.get(".type") != "config_subscribe":
-            continue
+    for section, item in _iter_subscription_sections(payload):
         result.append(
             {
                 "section": section,
@@ -112,31 +130,23 @@ def _parse_update_blocks(lines: list[str]) -> dict[str, list[str]]:
 
 
 def _classify_block(lines: list[str]) -> str:
-    if any("Update Successful!" in line for line in lines):
-        return "updated"
-    if any("No Change, Do Nothing!" in line for line in lines):
-        return "unchanged"
-    if any(
-        marker in line
-        for line in lines
-        for marker in ("Update Error", "Subscribed Failed", "Download Failed", "Error:")
-    ):
-        return "failed"
-    return "failed"
+    if any(_UPDATE_SUCCESS_MARKER in line for line in lines):
+        return STATUS_UPDATED
+    if any(_UPDATE_UNCHANGED_MARKER in line for line in lines):
+        return STATUS_UNCHANGED
+    if any(marker in line for line in lines for marker in _UPDATE_ERROR_MARKERS):
+        return STATUS_FAILED
+    return STATUS_FAILED
 
 
 def _matched_log_lines(lines: list[str], status: str) -> list[str]:
     matched = [line for line in lines if "Start Updating Config File【" in line]
-    if status == "updated":
-        matched.extend(line for line in lines if "Update Successful!" in line)
-    elif status == "unchanged":
-        matched.extend(line for line in lines if "No Change, Do Nothing!" in line)
+    if status == STATUS_UPDATED:
+        matched.extend(line for line in lines if _UPDATE_SUCCESS_MARKER in line)
+    elif status == STATUS_UNCHANGED:
+        matched.extend(line for line in lines if _UPDATE_UNCHANGED_MARKER in line)
     else:
-        matched.extend(
-            line
-            for line in lines
-            if "Update Error" in line or "Subscribed Failed" in line or "Download Failed" in line or "Error:" in line
-        )
+        matched.extend(line for line in lines if any(marker in line for marker in _UPDATE_ERROR_MARKERS))
     if not matched and lines:
         matched.append(lines[-1])
     return matched[:4]
@@ -164,23 +174,23 @@ def _build_item_evidence(
 
 
 def _summarize_outcomes(items: list[dict]) -> dict:
-    counts = {"updated": 0, "unchanged": 0, "failed": 0, "skipped": 0}
+    counts = {STATUS_UPDATED: 0, STATUS_UNCHANGED: 0, STATUS_FAILED: 0, STATUS_SKIPPED: 0}
     for item in items:
         counts[item["status"]] += 1
-    actionable_total = len(items) - counts["skipped"]
-    if actionable_total == 0 or counts["failed"] == 0:
+    actionable_total = len(items) - counts[STATUS_SKIPPED]
+    if actionable_total == 0 or counts[STATUS_FAILED] == 0:
         overall_status = "success"
-    elif counts["failed"] == actionable_total:
+    elif counts[STATUS_FAILED] == actionable_total:
         overall_status = "failed"
     else:
         overall_status = "partial"
     return {
         "overall_status": overall_status,
         "total": len(items),
-        "updated_count": counts["updated"],
-        "unchanged_count": counts["unchanged"],
-        "failed_count": counts["failed"],
-        "skipped_count": counts["skipped"],
+        "updated_count": counts[STATUS_UPDATED],
+        "unchanged_count": counts[STATUS_UNCHANGED],
+        "failed_count": counts[STATUS_FAILED],
+        "skipped_count": counts[STATUS_SKIPPED],
     }
 
 
@@ -352,10 +362,29 @@ def _query_subscription_userinfo(client: LuciRpcClient, address: str, user_agent
 def _usage_summary(items: list[dict]) -> dict:
     return {
         "total": len(items),
-        "ok": sum(1 for item in items if item["status"] == "ok"),
-        "failed": sum(1 for item in items if item["status"] == "failed"),
-        "skipped": sum(1 for item in items if item["status"] == "skipped"),
+        "ok": sum(1 for item in items if item["status"] == STATUS_OK),
+        "failed": sum(1 for item in items if item["status"] == STATUS_FAILED),
+        "skipped": sum(1 for item in items if item["status"] == STATUS_SKIPPED),
     }
+
+
+def _usage_item_base(subscription: dict) -> dict:
+    return {
+        "name": subscription["name"],
+        "section": subscription["section"],
+        "enabled": subscription["enabled"],
+    }
+
+
+def _usage_item(status: str, subscription: dict, **extra: object) -> dict:
+    return {**_usage_item_base(subscription), "status": status, **extra}
+
+
+def _usage_user_agents(subscription: dict) -> list[str]:
+    user_agents = [subscription["sub_ua"] or "Clash"]
+    if "Quantumultx" not in user_agents:
+        user_agents.append("Quantumultx")
+    return user_agents
 
 
 def subscription_usage(name: str | None = None) -> dict:
@@ -370,42 +399,34 @@ def subscription_usage(name: str | None = None) -> dict:
 
     items = []
     for subscription in subscriptions:
-        base_item = {
-            "name": subscription["name"],
-            "section": subscription["section"],
-            "enabled": subscription["enabled"],
-        }
         if not subscription["enabled"]:
-            items.append({**base_item, "status": "skipped", "reason": "disabled"})
+            items.append(_usage_item(STATUS_SKIPPED, subscription, reason=REASON_DISABLED))
             continue
         if not subscription["address"]:
-            items.append({**base_item, "status": "failed", "reason": "missing_address"})
+            items.append(_usage_item(STATUS_FAILED, subscription, reason=REASON_MISSING_ADDRESS))
             continue
 
-        user_agents = [subscription["sub_ua"] or "Clash"]
-        if "Quantumultx" not in user_agents:
-            user_agents.append("Quantumultx")
-        query = _query_subscription_userinfo(client, subscription["address"], user_agents)
+        query = _query_subscription_userinfo(client, subscription["address"], _usage_user_agents(subscription))
         if query["ok"]:
             items.append(
-                {
-                    **base_item,
-                    "status": "ok",
-                    "source": "subscription-userinfo",
-                    "user_agent": query["user_agent"],
-                    "http_code": query["http_code"],
-                    "quota": parse_subscription_userinfo(query["userinfo"]),
-                    "attempts": query["attempts"],
-                }
+                _usage_item(
+                    STATUS_OK,
+                    subscription,
+                    source="subscription-userinfo",
+                    user_agent=query["user_agent"],
+                    http_code=query["http_code"],
+                    quota=parse_subscription_userinfo(query["userinfo"]),
+                    attempts=query["attempts"],
+                )
             )
         else:
             items.append(
-                {
-                    **base_item,
-                    "status": "failed",
-                    "reason": "subscription_userinfo_not_found",
-                    "attempts": query["attempts"],
-                }
+                _usage_item(
+                    STATUS_FAILED,
+                    subscription,
+                    reason=REASON_USERINFO_NOT_FOUND,
+                    attempts=query["attempts"],
+                )
             )
 
     return {"target": target, "items": items, "summary": _usage_summary(items)}
@@ -432,6 +453,16 @@ def _ensure_unique_subscription_name(subscriptions: list[dict], current_name: st
 
 def _subscription_after_update(subscription: dict, **changes: object) -> dict:
     return {**subscription, **changes}
+
+
+def _update_item(seed: dict, status: str, evidence: dict) -> dict:
+    return {
+        "name": seed["name"],
+        "section": seed["section"],
+        "enabled": seed["enabled"],
+        "status": status,
+        "evidence": evidence,
+    }
 
 
 def remove_subscription(name: str) -> dict:
@@ -527,29 +558,25 @@ def update_subscription(name: str | None, config: str | None, progress: Callable
     for seed in item_seeds:
         if target_details["mode"] == "all" and not seed["enabled"]:
             items.append(
-                {
-                    "name": seed["name"],
-                    "section": seed["section"],
-                    "enabled": seed["enabled"],
-                    "status": "skipped",
-                    "evidence": {
+                _update_item(
+                    seed,
+                    STATUS_SKIPPED,
+                    {
                         "source": "subscription.config",
                         "matched_lines": [],
                     },
-                }
+                )
             )
             continue
 
         block_lines = blocks.get(seed["name"], [])
-        status = _classify_block(block_lines) if block_lines else "failed"
+        status = _classify_block(block_lines) if block_lines else STATUS_FAILED
         items.append(
-            {
-                "name": seed["name"],
-                "section": seed["section"],
-                "enabled": seed["enabled"],
-                "status": status,
-                "evidence": _build_item_evidence(seed["name"], block_lines, status, before_configs, after_configs),
-            }
+            _update_item(
+                seed,
+                status,
+                _build_item_evidence(seed["name"], block_lines, status, before_configs, after_configs),
+            )
         )
 
     refreshed = client.get_openclash_uci()
@@ -608,7 +635,7 @@ def switch_config(path: str) -> dict:
     }
 
 
-def summarize_config_files(entries: list[dict], directory: str = "/etc/openclash/config") -> list[dict]:
+def summarize_config_files(entries: list[dict]) -> list[dict]:
     return [
         {
             "path": entry["path"],
@@ -624,4 +651,4 @@ def config_files(directory: str) -> dict:
         {"path": entry.path, "size": entry.size, "mtime": entry.mtime}
         for entry in LuciRpcClient().list_config_files(directory)
     ]
-    return {"configs": summarize_config_files(entries, directory)}
+    return {"configs": summarize_config_files(entries)}

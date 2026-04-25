@@ -1,9 +1,10 @@
 ---
-name: opclash_cli_skill
+
+## name: opclash_cli_skill
+
 description: Use when operating OpenClash with this repository CLI, with router-local system operations and remote controller reads/switches.
 skill_version: 0.3.0
 updated_at: 2026-04-25
----
 
 # opclash_cli_skill
 

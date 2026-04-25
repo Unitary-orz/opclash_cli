@@ -1,5 +1,6 @@
 import argparse
 import sys
+from typing import Callable
 
 from opclash_cli import __brand__, __brand_banner__, __version__
 from opclash_cli.commands.doctor import config as doctor_config
@@ -21,6 +22,7 @@ from opclash_cli.commands.service import restart as service_restart
 from opclash_cli.commands.service import status as service_status
 from opclash_cli.commands.subscription import (
     add_subscription,
+    config_files,
     disable_subscription,
     enable_subscription,
     current_config,
@@ -365,6 +367,127 @@ def _confirm_or_abort(args: argparse.Namespace) -> int | None:
     return None
 
 
+def _handle_init(args: argparse.Namespace) -> tuple[str, dict, object]:
+    if args.init_command is None:
+        return (
+            "init",
+            write_config(
+                args.controller_url,
+                args.controller_secret,
+            ),
+            None,
+        )
+    if args.init_command == "show":
+        if not config_exists():
+            raise CliError("LOCAL_CONFIG_MISSING", "Local config file was not found")
+        return ("init show", show_config(), None)
+    if args.init_command == "check":
+        return ("init check", check_backends(), None)
+    raise CliError("INVALID_COMMAND", f"Unknown init command: {args.init_command}")
+
+
+def _handle_nodes(args: argparse.Namespace) -> tuple[str, dict, object]:
+    if args.nodes_command == "groups":
+        return ("nodes groups", nodes_groups(), None)
+    if args.nodes_command == "providers":
+        return ("nodes providers", nodes_providers(), None)
+    if args.nodes_command == "group":
+        return ("nodes group", node_group(args.name), None)
+    if args.nodes_command == "speedtest":
+        return ("nodes speedtest", nodes_speedtest(args.group, args.limit, args.url, args.timeout), None)
+    if args.nodes_command == "switch":
+        result = switch_node(args.group, args.target)
+        return ("nodes switch", {"before": result["before"], "after": result["after"]}, result["audit"])
+    raise CliError("INVALID_COMMAND", f"Unknown nodes command: {args.nodes_command}")
+
+
+def _handle_sub(args: argparse.Namespace) -> tuple[str, dict, object]:
+    if args.sub_command == "list":
+        return ("sub list", list_subscriptions(), None)
+    if args.sub_command == "usage":
+        return ("sub usage", subscription_usage(args.name), None)
+    if args.sub_command == "current":
+        return ("sub current", current_config(), None)
+    if args.sub_command == "configs":
+        return ("sub configs", config_files(args.directory), None)
+    if args.sub_command == "add":
+        result = add_subscription(args.name, args.url)
+        return ("sub add", {"subscription": result["subscription"]}, result["audit"])
+    if args.sub_command == "remove":
+        result = remove_subscription(args.name)
+        return ("sub remove", {"removed": result["removed"], "archive": result["archive"]}, result["audit"])
+    if args.sub_command == "enable":
+        result = enable_subscription(args.name)
+        return ("sub enable", {"before": result["before"], "after": result["after"]}, result["audit"])
+    if args.sub_command == "disable":
+        result = disable_subscription(args.name)
+        return ("sub disable", {"before": result["before"], "after": result["after"]}, result["audit"])
+    if args.sub_command == "rename":
+        result = rename_subscription(args.name, args.to)
+        return ("sub rename", {"before": result["before"], "after": result["after"]}, result["audit"])
+    if args.sub_command == "update":
+        result = update_subscription(args.name, args.config, progress=_stderr_progress)
+        return (
+            "sub update",
+            {
+                "target": result["target"],
+                "items": result["items"],
+                "summary": result["summary"],
+                "before": result["before"],
+                "after": result["after"],
+                "firewall": result["firewall"],
+                "suggested_commands": result["suggested_commands"],
+            },
+            result["audit"],
+        )
+    if args.sub_command == "switch":
+        result = switch_config(args.config)
+        data = {
+            "before": result["before"],
+            "after": result["after"],
+            "changed": result.get("changed", True),
+        }
+        if "message" in result:
+            data["message"] = result["message"]
+        return ("sub switch", data, result["audit"])
+    raise CliError("INVALID_COMMAND", f"Unknown sub command: {args.sub_command}")
+
+
+def _handle_service(args: argparse.Namespace) -> tuple[str, dict, object]:
+    if args.service_command == "status":
+        return ("service status", service_status(), None)
+    if args.service_command == "reload":
+        result = service_reload()
+        return ("service reload", {"result": result["result"]}, result["audit"])
+    if args.service_command == "restart":
+        result = service_restart()
+        return ("service restart", {"result": result["result"]}, result["audit"])
+    if args.service_command == "logs":
+        return ("service logs", service_logs(), None)
+    raise CliError("INVALID_COMMAND", f"Unknown service command: {args.service_command}")
+
+
+def _handle_doctor(args: argparse.Namespace) -> tuple[str, dict, object]:
+    if args.doctor_command == "network":
+        return ("doctor network", doctor_network(), None)
+    if args.doctor_command == "runtime":
+        return ("doctor runtime", doctor_runtime(), None)
+    if args.doctor_command == "config":
+        return ("doctor config", doctor_config(), None)
+    if args.doctor_command == "logs":
+        return ("doctor logs", doctor_logs(args.limit), None)
+    raise CliError("INVALID_COMMAND", f"Unknown doctor command: {args.doctor_command}")
+
+
+_COMMAND_HANDLERS: dict[str, Callable[[argparse.Namespace], tuple[str, dict, object]]] = {
+    "init": _handle_init,
+    "nodes": _handle_nodes,
+    "sub": _handle_sub,
+    "service": _handle_service,
+    "doctor": _handle_doctor,
+}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -391,156 +514,10 @@ def main(argv: list[str] | None = None) -> int:
             if aborted is not None:
                 return aborted
 
-        if args.command == "init" and args.init_command is None:
-            emit(
-                ok(
-                    "init",
-                    write_config(
-                        args.controller_url,
-                        args.controller_secret,
-                    ),
-                )
-            )
-            return 0
-
-        if args.command == "init" and args.init_command == "show":
-            if not config_exists():
-                emit(fail("init show", "LOCAL_CONFIG_MISSING", "Local config file was not found"))
-                return 1
-            emit(ok("init show", show_config()))
-            return 0
-
-        if args.command == "init" and args.init_command == "check":
-            emit(ok("init check", check_backends()))
-            return 0
-
-        if args.command == "nodes" and args.nodes_command == "groups":
-            emit(ok("nodes groups", nodes_groups()))
-            return 0
-
-        if args.command == "nodes" and args.nodes_command == "providers":
-            emit(ok("nodes providers", nodes_providers()))
-            return 0
-
-        if args.command == "nodes" and args.nodes_command == "group":
-            emit(ok("nodes group", node_group(args.name)))
-            return 0
-
-        if args.command == "nodes" and args.nodes_command == "speedtest":
-            emit(ok("nodes speedtest", nodes_speedtest(args.group, args.limit, args.url, args.timeout)))
-            return 0
-
-        if args.command == "nodes" and args.nodes_command == "switch":
-            result = switch_node(args.group, args.target)
-            emit(ok("nodes switch", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
-            return 0
-
-        if args.command == "sub" and args.sub_command == "list":
-            emit(ok("sub list", list_subscriptions()))
-            return 0
-
-        if args.command == "sub" and args.sub_command == "usage":
-            emit(ok("sub usage", subscription_usage(args.name)))
-            return 0
-
-        if args.command == "sub" and args.sub_command == "current":
-            emit(ok("sub current", current_config()))
-            return 0
-
-        if args.command == "sub" and args.sub_command == "configs":
-            from opclash_cli.commands.subscription import config_files
-
-            emit(ok("sub configs", config_files(args.directory)))
-            return 0
-
-        if args.command == "sub" and args.sub_command == "add":
-            result = add_subscription(args.name, args.url)
-            emit(ok("sub add", {"subscription": result["subscription"]}, audit=result["audit"]))
-            return 0
-
-        if args.command == "sub" and args.sub_command == "remove":
-            result = remove_subscription(args.name)
-            emit(ok("sub remove", {"removed": result["removed"], "archive": result["archive"]}, audit=result["audit"]))
-            return 0
-
-        if args.command == "sub" and args.sub_command == "enable":
-            result = enable_subscription(args.name)
-            emit(ok("sub enable", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
-            return 0
-
-        if args.command == "sub" and args.sub_command == "disable":
-            result = disable_subscription(args.name)
-            emit(ok("sub disable", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
-            return 0
-
-        if args.command == "sub" and args.sub_command == "rename":
-            result = rename_subscription(args.name, args.to)
-            emit(ok("sub rename", {"before": result["before"], "after": result["after"]}, audit=result["audit"]))
-            return 0
-
-        if args.command == "sub" and args.sub_command == "update":
-            result = update_subscription(args.name, args.config, progress=_stderr_progress)
-            emit(
-                ok(
-                    "sub update",
-                    {
-                        "target": result["target"],
-                        "items": result["items"],
-                        "summary": result["summary"],
-                        "before": result["before"],
-                        "after": result["after"],
-                        "firewall": result["firewall"],
-                        "suggested_commands": result["suggested_commands"],
-                    },
-                    audit=result["audit"],
-                )
-            )
-            return 0
-
-        if args.command == "sub" and args.sub_command == "switch":
-            result = switch_config(args.config)
-            data = {
-                "before": result["before"],
-                "after": result["after"],
-                "changed": result.get("changed", True),
-            }
-            if "message" in result:
-                data["message"] = result["message"]
-            emit(ok("sub switch", data, audit=result["audit"]))
-            return 0
-
-        if args.command == "service" and args.service_command == "status":
-            emit(ok("service status", service_status()))
-            return 0
-
-        if args.command == "service" and args.service_command == "reload":
-            result = service_reload()
-            emit(ok("service reload", {"result": result["result"]}, audit=result["audit"]))
-            return 0
-
-        if args.command == "service" and args.service_command == "restart":
-            result = service_restart()
-            emit(ok("service restart", {"result": result["result"]}, audit=result["audit"]))
-            return 0
-
-        if args.command == "service" and args.service_command == "logs":
-            emit(ok("service logs", service_logs()))
-            return 0
-
-        if args.command == "doctor" and args.doctor_command == "network":
-            emit(ok("doctor network", doctor_network()))
-            return 0
-
-        if args.command == "doctor" and args.doctor_command == "runtime":
-            emit(ok("doctor runtime", doctor_runtime()))
-            return 0
-
-        if args.command == "doctor" and args.doctor_command == "config":
-            emit(ok("doctor config", doctor_config()))
-            return 0
-
-        if args.command == "doctor" and args.doctor_command == "logs":
-            emit(ok("doctor logs", doctor_logs(args.limit)))
+        handler = _COMMAND_HANDLERS.get(args.command or "")
+        if handler is not None:
+            command, payload, audit = handler(args)
+            emit(ok(command, payload, audit=audit))
             return 0
     except CliError as error:
         emit(fail(_command_name(args), error.code, error.message, error.details))
