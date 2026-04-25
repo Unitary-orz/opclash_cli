@@ -142,7 +142,6 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 
 说明：
 
-- 首次使用若未执行 `init` 写入 controller，`nodes` 等 controller 命令会因 URL 缺失而失败
 - `sub switch --config` 需要传入远端 OpenClash 主机上的完整配置路径
 - `sub enable/disable` 只影响该订阅是否参与更新，不直接切换当前运行配置
 - 支持同时启用多个订阅；OpenClash 当前生效的配置仍由 `sub current` / `sub switch` 决定

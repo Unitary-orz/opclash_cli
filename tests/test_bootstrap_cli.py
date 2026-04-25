@@ -199,6 +199,22 @@ def test_global_version_prints_plain_text(capsys):
     assert capsys.readouterr().out == " /\\_/\\\\\n( o.o )  opclash_cli 0.3.0\n > ^ <\n"
 
 
+def test_nodes_groups_returns_structured_error_when_controller_url_missing(capsys, monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENCLASH_CLI_CONFIG", str(tmp_path / "config.toml"))
+    (tmp_path / "config.toml").write_text(
+        '[controller]\nurl = ""\nsecret = "controller-secret"\n',
+        encoding="utf-8",
+    )
+
+    exit_code = main(["nodes", "groups"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 1
+    assert payload["ok"] is False
+    assert payload["command"] == "nodes groups"
+    assert payload["error"]["code"] == "CONTROLLER_URL_MISSING"
+
+
 def test_completion_bash_outputs_script(capsys):
     exit_code = main(["completion", "bash"])
 
