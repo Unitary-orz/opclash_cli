@@ -4,14 +4,14 @@
 
 ### ⚠️ 行为变更
 
-- **`init` 只写 Controller**：本地配置仅持久化 Clash Controller 的 URL 与 secret，不再保存跨机 LuCI / management 账号或 HTTPS 远程管理参数
+- `**init` 只写 Controller**：本地配置仅持久化 Clash Controller 的 URL 与 secret，不再保存跨机 LuCI / management 账号或 HTTPS 远程管理参数
 - **本机限定系统类命令**：订阅 CRUD、服务控制、`sub switch` 等依赖 OpenWrt UCI 与路由器路径的操作，须在路由器上以 **root** 执行且环境可用 `uci`；在非本机执行会得到明确错误指引
 - **远端保留 controller-only**：在 PC / CI 等环境仍可通过 Controller 使用 `nodes` 查看、测速与切换节点
 
 ### ✨ Added
 
 - **子命令更名**：`subscription` 更名为 `sub`
-- **`sub usage`**：基于订阅响应头查询用量、配额与到期信息
+- `**sub usage`**：基于订阅响应头查询用量、配额与到期信息
 - **订阅管理补齐**：`sub remove`、`enable`、`disable`、`rename` 等
 - **删除订阅归档**：删除时写入 `~/.local/state/opclash_cli/subscription-archive.jsonl`
 
@@ -54,3 +54,4 @@
 - README 增加子命令表格速览
 - 项目文案收紧为更轻量的工具风格
 - 许可证、贡献说明、支持说明与安全说明齐备
+
