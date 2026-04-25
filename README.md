@@ -76,19 +76,19 @@ python3 -m opclash_cli.main init \
   --controller-secret your-secret
 ```
 
-1. 检查 controller 和本机执行条件
+2. 检查 controller 和本机执行条件
 
 ```bash
 opclash_cli init check
 ```
 
-1. 查看节点组
+3. 查看节点组
 
 ```bash
 opclash_cli nodes groups
 ```
 
-1. 在路由器本机切换订阅配置
+4. 在路由器本机切换订阅配置
 
 ```bash
 opclash_cli sub switch \
@@ -114,6 +114,7 @@ opclash_cli sub switch \
 | 订阅  | `sub switch`             | 切换远端配置文件          | `opclash_cli sub switch --config /etc/openclash/config/example.yaml` |
 | 服务  | `service status`         | 查看 OpenClash 服务状态 | `opclash_cli service status`                                         |
 | 服务  | `service reload/restart` | 重载或重启服务           | `opclash_cli service restart --yes`                                  |
+| 服务  | `service logs`           | 查看 OpenClash 服务日志   | `opclash_cli service logs --tail 100`                                |
 | 诊断  | `doctor`                 | 执行基础诊断与日志查看       | `opclash_cli doctor logs --limit 20`                                 |
 | 通用  | `version` / `completion` | 查看版本或生成补全脚本       | `opclash_cli completion bash`                                        |
 
@@ -141,6 +142,7 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 
 说明：
 
+- 首次使用若未执行 `init` 写入 controller，`nodes` 等 controller 命令会因 URL 缺失而失败
 - `sub switch --config` 需要传入远端 OpenClash 主机上的完整配置路径
 - `sub enable/disable` 只影响该订阅是否参与更新，不直接切换当前运行配置
 - 支持同时启用多个订阅；OpenClash 当前生效的配置仍由 `sub current` / `sub switch` 决定
