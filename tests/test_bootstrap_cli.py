@@ -254,7 +254,7 @@ def test_root_help_includes_command_descriptions(capsys):
         assert error.code == 0
 
     output = capsys.readouterr().out
-    assert "Remote OpenClash management CLI" in output
+    assert "OpenClash router-local and Clash controller CLI" in output
     assert "init                write or inspect local connection config" in output
     assert "sub                 manage subscriptions and config switching" in output
 

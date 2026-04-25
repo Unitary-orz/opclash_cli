@@ -151,55 +151,23 @@ def test_service_status_suggests_running_locally_when_management_is_unconfigured
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 1
-    assert payload["error"]["code"] == "MANAGEMENT_NOT_CONFIGURED"
-    assert payload["error"]["details"]["recommended_mode"] == "local-management"
+    assert payload["error"]["code"] == "LOCAL_ROUTER_REQUIRED"
+    assert payload["error"]["details"]["recommended_mode"] == "router-local"
 
 
-def test_sub_current_suggests_running_locally_when_management_login_is_denied(tmp_path, monkeypatch, capsys):
+def test_sub_current_suggests_running_locally_when_not_on_router(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("OPENCLASH_CLI_CONFIG", str(tmp_path / "config.toml"))
     (tmp_path / "config.toml").write_text(
         (
-            '[controller]\nurl = "http://router:9090"\nsecret = "controller-secret"\n\n'
-            '[management]\nurl = "https://router"\nusername = "root"\npassword = "bad"\nssl_verify = false\n'
+            '[controller]\nurl = "http://router:9090"\nsecret = "controller-secret"\n'
         ),
         encoding="utf-8",
     )
     monkeypatch.setattr(luci_rpc_module.LuciRpcClient, "_should_use_local_backend", lambda self: False)
 
-    class DeniedSession:
-        def __init__(self):
-            self.verify = False
-
-        def post(self, url: str, json: dict, timeout: int):
-            if "/cgi-bin/luci/rpc/auth" in url:
-                return type(
-                    "Response",
-                    (),
-                    {
-                        "status_code": 404,
-                        "raise_for_status": lambda self: (_ for _ in ()).throw(
-                            luci_rpc_module.requests.exceptions.HTTPError(
-                                "404 Client Error", response=self
-                            )
-                        ),
-                        "json": lambda self: {"result": None},
-                    },
-                )()
-            return type(
-                "Response",
-                (),
-                {
-                    "status_code": 200,
-                    "raise_for_status": lambda self: None,
-                    "json": lambda self: {"result": [6]},
-                },
-            )()
-
-    monkeypatch.setattr(luci_rpc_module.requests, "Session", DeniedSession)
-
     exit_code = main(["sub", "current"])
 
     payload = json.loads(capsys.readouterr().out)
     assert exit_code == 1
-    assert payload["error"]["code"] == "MANAGEMENT_AUTH_FAILED"
-    assert payload["error"]["details"]["recommended_mode"] == "local-management"
+    assert payload["error"]["code"] == "LOCAL_ROUTER_REQUIRED"
+    assert payload["error"]["details"]["recommended_mode"] == "router-local"

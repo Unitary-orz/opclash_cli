@@ -4,14 +4,14 @@
  > ^ <
 ```
 
-> 🧭 面向 OpenClash 的远程管理 CLI
+> 🧭 面向 OpenClash 的本机管理与 Controller 远程控制 CLI
 
-`opclash_cli` 是一个 Python 3.11 命令行工具，用于远程管理 OpenClash，覆盖订阅、节点、服务和基础诊断。
+`opclash_cli` 是一个 Python 3.11 命令行工具，用于在路由器本机管理 OpenClash，并在其他机器上远程控制 Clash Controller，覆盖订阅、节点、服务和基础诊断。
 
 ## ✨ 特性
 
-- 本机管理优先：在路由器本机执行时自动启用 local management，适合订阅、服务和配置操作
-- 远程控制分层：默认使用 controller 执行节点与测速操作，remote management 作为高级能力单独启用
+- 本机管理优先：订阅、服务、配置、日志等系统级操作要求在路由器本机执行
+- 远程控制明确：在其他机器上默认只使用 controller 执行节点查看、测速和切换
 - 订阅管理完整：支持新增、启停、更新、重命名、删除与本地归档
 - 节点切换更稳妥：可先查看节点组与测速结果，再执行切换
 - 服务与诊断闭环：重载或重启后可立即复核状态，并查看网络、配置、日志信息
@@ -23,7 +23,7 @@
 要求：
 
 - Python `3.11+`
-- 可访问 OpenClash Controller 与 OpenWrt 管理后端（本机、`/ubus` 或 LuCI RPC）
+- 可访问 OpenClash Controller
 
 普通安装：
 
@@ -60,27 +60,15 @@ cp -r ./skills/opclash_cli_skill ~/.codex/skills/
 
 1. 初始化连接配置
 
-在路由器本机执行时，`init` 会自动配置 `local://openwrt` management：
-
-```bash
-python3 -m opclash_cli.main init \
-  --controller-url http://127.0.0.1:9090 \
-  --controller-secret your-secret
-```
-
-如果你在其他机器上使用 CLI，默认只会配置 controller。只有确实需要远程订阅、服务或 UCI 管理时，才建议显式启用高级 remote management：
+无论是否在路由器本机，`init` 现在只写入 controller 配置：
 
 ```bash
 python3 -m opclash_cli.main init \
   --controller-url http://192.168.1.1:9090 \
-  --controller-secret your-secret \
-  --management-url https://192.168.1.1 \
-  --management-username root \
-  --management-password your-password \
-  --management-insecure
+  --controller-secret your-secret
 ```
 
-2. 检查后端连通性
+2. 检查 controller 和本机执行条件
 
 ```bash
 opclash_cli init check
@@ -92,7 +80,7 @@ opclash_cli init check
 opclash_cli nodes groups
 ```
 
-4. 切换订阅配置
+4. 在路由器本机切换订阅配置
 
 ```bash
 opclash_cli sub switch \
@@ -138,7 +126,7 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 
 1. 安装 CLI
 2. 执行 `opclash_cli init ...` 写入连接配置
-3. 执行 `opclash_cli init check` 验证 controller 与当前可用的 management 模式
+3. 执行 `opclash_cli init check` 验证 controller 与本机执行条件
 4. 再执行 `nodes`、`sub`、`service` 等操作命令
 
 说明：
@@ -146,15 +134,14 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 - `sub switch --config` 需要传入远端 OpenClash 主机上的完整配置路径
 - `sub enable/disable` 只影响该订阅是否参与更新，不直接切换当前运行配置
 - 支持同时启用多个订阅；OpenClash 当前生效的配置仍由 `sub current` / `sub switch` 决定
-- 订阅、服务、UCI、远端文件等系统级命令优先建议在路由器本机执行
-- remote management 属于高级能力；未配置时，相关命令会提示优先在本机执行
-- `service logs` 读取的是远端 `/tmp/openclash.log`
+- 订阅、服务、UCI、配置文件和日志等系统级命令必须在路由器本机执行
+- 非本机执行这些命令时，CLI 会直接提示切换到路由器本机
+- `service logs` 读取的是本机 `/tmp/openclash.log`
 - `doctor logs` 读取的是本地 CLI 操作日志
 
 ## 🔐 安全与审计设计
 
 - 本地凭据默认写入 `~/.config/opclash_cli/config.toml`，支持 `OPENCLASH_CLI_CONFIG` 覆盖
-- remote management 建议仅在确有需要时启用，并优先使用最小权限账号或专用 ACL
 - 修改类命令支持交互确认、`--yes` 与 `--dry-run`
 - CLI 统一输出 JSON，用于审计、脚本消费与自动化记录
 - 本地操作日志只记录初始化与修改类动作
@@ -171,8 +158,8 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
   "timestamp": "2026-04-22T13:42:34.065661Z",
   "data": {
     "controller_ok": true,
-    "management_ok": true,
-    "management_backend": "ubus"
+    "router_local_ok": true,
+    "router_local_backend": "local"
   },
   "warnings": [],
   "audit": null,

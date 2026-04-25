@@ -6,7 +6,6 @@ from opclash_cli.commands.doctor import config as doctor_config
 from opclash_cli.commands.doctor import logs as doctor_logs
 from opclash_cli.commands.doctor import network as doctor_network
 from opclash_cli.commands.doctor import runtime as doctor_runtime
-from opclash_cli.commands.init import check_backends
 from opclash_cli.commands.init import mask_secret, show_config, write_config
 from opclash_cli.commands.init import check_backends
 from opclash_cli.commands.nodes import (
@@ -60,7 +59,7 @@ def _add_mutation_flags(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="opclash_cli",
-        description="Remote OpenClash management CLI",
+        description="OpenClash router-local and Clash controller CLI",
     )
     parser.add_argument("--version", action="store_true", help="print plain version banner")
     subparsers = parser.add_subparsers(dest="command")
@@ -73,14 +72,6 @@ def build_parser() -> argparse.ArgumentParser:
     _add_mutation_flags(init_parser)
     init_parser.add_argument("--controller-url", help="Clash controller URL")
     init_parser.add_argument("--controller-secret", help="Clash controller secret")
-    init_parser.add_argument("--management-url", help="advanced remote management URL or base host")
-    init_parser.add_argument("--management-username", help="advanced remote management username")
-    init_parser.add_argument("--management-password", help="advanced remote management password")
-    init_parser.add_argument(
-        "--management-insecure",
-        action="store_true",
-        help="disable advanced remote management SSL certificate verification",
-    )
     init_subparsers = init_parser.add_subparsers(dest="init_command")
     init_subparsers.add_parser("show", help="show masked local config", description="Show masked local config.")
 
@@ -197,8 +188,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     init_subparsers.add_parser(
         "check",
-        help="check controller and OpenWrt management connectivity",
-        description="Check controller and OpenWrt management connectivity.",
+        help="check controller and router-local availability",
+        description="Check controller and router-local availability.",
     )
 
     doctor_parser = subparsers.add_parser(
@@ -337,10 +328,6 @@ def _dry_run_payload(args: argparse.Namespace) -> dict:
         params = {
             "controller_url": args.controller_url,
             "controller_secret": mask_secret(args.controller_secret or ""),
-            "management_url": args.management_url,
-            "management_username": args.management_username,
-            "management_password": mask_secret(args.management_password or ""),
-            "management_insecure": args.management_insecure,
             "config_path": str(config_path()),
         }
     elif command == "nodes switch":
@@ -411,10 +398,6 @@ def main(argv: list[str] | None = None) -> int:
                     write_config(
                         args.controller_url,
                         args.controller_secret,
-                        args.management_url,
-                        args.management_username,
-                        args.management_password,
-                        management_ssl_verify=not args.management_insecure,
                     ),
                 )
             )

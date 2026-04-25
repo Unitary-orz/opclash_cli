@@ -20,10 +20,10 @@ def test_summarize_config_files_returns_name_size_and_mtime():
     assert result[0]["size"] == 12345
 
 
-def test_build_network_report_marks_both_backends_ok():
+def test_build_network_report_marks_controller_and_router_local_ok():
     result = build_network_report(True, True, True)
     assert result["status"] == "ok"
-    assert result["management_ok"] is True
+    assert result["router_local_ok"] is True
 
 
 def test_ok_uses_real_utc_timestamp():
