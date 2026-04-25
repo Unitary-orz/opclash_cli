@@ -24,7 +24,7 @@
 
 **本机环境**：在已安装 OpenClash 的 OpenWrt 上、以 **root** 运行 CLI，且系统 `PATH` 中能调用 `uci`。此时 `init check` 会报告 `router_local_ok: true`，`sub`、`service`、`sub switch` 等依赖本机 OpenWrt 与文件路径的命令可用；Controller 既可以是 `127.0.0.1:9090`，也可以指向同一台路由器的对外地址。
 
-**远程环境**：在 PC、服务器或 CI 上运行，仅能通过已保存的 Controller 访问远端 Clash。**`nodes` 系列**（查看组、测速、切换节点）一般可直接使用。任何需要读写本机 UCI、调用 OpenWrt 服务或访问路由器文件路径的命令会失败，并提示到路由器上执行。
+**远程环境**：在 PC、服务器或 CI 上运行，仅能通过已保存的 Controller 访问远端 Clash。`**nodes` 系列**（查看组、测速、切换节点）一般可直接使用。任何需要读写本机 UCI、调用 OpenWrt 服务或访问路由器文件路径的命令会失败，并提示到路由器上执行。
 
 ## 📦 安装
 
@@ -76,19 +76,19 @@ python3 -m opclash_cli.main init \
   --controller-secret your-secret
 ```
 
-2. 检查 controller 和本机执行条件
+1. 检查 controller 和本机执行条件
 
 ```bash
 opclash_cli init check
 ```
 
-3. 查看节点组
+1. 查看节点组
 
 ```bash
 opclash_cli nodes groups
 ```
 
-4. 在路由器本机切换订阅配置
+1. 在路由器本机切换订阅配置
 
 ```bash
 opclash_cli sub switch \
@@ -114,7 +114,7 @@ opclash_cli sub switch \
 | 订阅  | `sub switch`             | 切换远端配置文件          | `opclash_cli sub switch --config /etc/openclash/config/example.yaml` |
 | 服务  | `service status`         | 查看 OpenClash 服务状态 | `opclash_cli service status`                                         |
 | 服务  | `service reload/restart` | 重载或重启服务           | `opclash_cli service restart --yes`                                  |
-| 服务  | `service logs`           | 查看 OpenClash 服务日志   | `opclash_cli service logs`                                           |
+| 服务  | `service logs`           | 查看 OpenClash 服务日志 | `opclash_cli service logs`                                           |
 | 诊断  | `doctor`                 | 执行基础诊断与日志查看       | `opclash_cli doctor logs --limit 20`                                 |
 | 通用  | `version` / `completion` | 查看版本或生成补全脚本       | `opclash_cli completion bash`                                        |
 
