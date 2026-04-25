@@ -188,7 +188,7 @@ def test_version_command_returns_metadata(capsys, monkeypatch, tmp_path):
     assert payload["ok"] is True
     assert payload["command"] == "version"
     assert payload["data"]["brand"] == "🐱 opclash_cli"
-    assert payload["data"]["version"] == "0.2.0"
+    assert payload["data"]["version"] == "0.3.0"
     assert payload["data"]["python"] == sys.version.split()[0]
 
 
@@ -196,7 +196,7 @@ def test_global_version_prints_plain_text(capsys):
     exit_code = main(["--version"])
 
     assert exit_code == 0
-    assert capsys.readouterr().out == " /\\_/\\\\\n( o.o )  opclash_cli 0.2.0\n > ^ <\n"
+    assert capsys.readouterr().out == " /\\_/\\\\\n( o.o )  opclash_cli 0.3.0\n > ^ <\n"
 
 
 def test_completion_bash_outputs_script(capsys):

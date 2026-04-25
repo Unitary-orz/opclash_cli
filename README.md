@@ -18,6 +18,14 @@
 - 结构化输出友好：默认 JSON，便于脚本、CI 和 AI Agent 直接消费
 - 安全与审计可控：凭据本地保存，修改类操作支持确认与 `--dry-run`
 
+## 🖥️ 本机与远程环境
+
+配置文件里**只会**保存 OpenClash Controller（URL 与 secret），用于连接 Clash 外部控制接口。能不能改路由器上的订阅、服务或 UCI，取决于你是否在**路由器本机**执行命令，而不是否多写一套远程管理 URL。
+
+**本机环境**：在已安装 OpenClash 的 OpenWrt 上、以 **root** 运行 CLI，且系统 `PATH` 中能调用 `uci`。此时 `init check` 会报告 `router_local_ok: true`，`sub`、`service`、`sub switch` 等依赖本机 OpenWrt 与文件路径的命令可用；Controller 既可以是 `127.0.0.1:9090`，也可以指向同一台路由器的对外地址。
+
+**远程环境**：在 PC、服务器或 CI 上运行，仅能通过已保存的 Controller 访问远端 Clash。**`nodes` 系列**（查看组、测速、切换节点）一般可直接使用。任何需要读写本机 UCI、调用 OpenWrt 服务或访问路由器文件路径的命令会失败，并提示到路由器上执行；**不再提供**通过配置文件保存 LuCI HTTPS 账号、在异地完成全量订阅/服务管理的模式。
+
 ## 📦 安装
 
 要求：
@@ -68,19 +76,19 @@ python3 -m opclash_cli.main init \
   --controller-secret your-secret
 ```
 
-2. 检查 controller 和本机执行条件
+1. 检查 controller 和本机执行条件
 
 ```bash
 opclash_cli init check
 ```
 
-3. 查看节点组
+1. 查看节点组
 
 ```bash
 opclash_cli nodes groups
 ```
 
-4. 在路由器本机切换订阅配置
+1. 在路由器本机切换订阅配置
 
 ```bash
 opclash_cli sub switch \
@@ -89,24 +97,26 @@ opclash_cli sub switch \
 
 ## 🛠️ 命令一览
 
-| 领域 | 子命令 | 用途 | 常见示例 |
-| --- | --- | --- | --- |
-| 初始化 | `init` | 写入或检查本地连接配置 | `opclash_cli init check` |
-| 节点 | `nodes groups` | 查看所有节点组 | `opclash_cli nodes groups` |
-| 节点 | `nodes group` | 查看指定组详情 | `opclash_cli nodes group --name HK` |
-| 节点 | `nodes switch` | 切换组内节点 | `opclash_cli nodes switch --group Apple --target DIRECT` |
-| 节点 | `nodes speedtest` | 调用 Clash 自带测速并排序 | `opclash_cli nodes speedtest --group HK --limit 10` |
-| 订阅 | `sub list` | 查看订阅列表 | `opclash_cli sub list` |
-| 订阅 | `sub add` | 新增订阅源 | `opclash_cli sub add --name west2 --url https://example/sub` |
-| 订阅 | `sub enable/disable` | 控制订阅是否参与更新 | `opclash_cli sub enable --name west2` |
-| 订阅 | `sub rename` | 调整订阅显示名 | `opclash_cli sub rename --name west2 --to west2-main` |
-| 订阅 | `sub remove` | 删除订阅并写入本地归档 | `opclash_cli sub remove --name west2` |
-| 订阅 | `sub update` | 更新订阅 | `opclash_cli sub update --name west2` |
-| 订阅 | `sub switch` | 切换远端配置文件 | `opclash_cli sub switch --config /etc/openclash/config/example.yaml` |
-| 服务 | `service status` | 查看 OpenClash 服务状态 | `opclash_cli service status` |
-| 服务 | `service reload/restart` | 重载或重启服务 | `opclash_cli service restart --yes` |
-| 诊断 | `doctor` | 执行基础诊断与日志查看 | `opclash_cli doctor logs --limit 20` |
-| 通用 | `version` / `completion` | 查看版本或生成补全脚本 | `opclash_cli completion bash` |
+
+| 领域  | 子命令                      | 用途                | 常见示例                                                                 |
+| --- | ------------------------ | ----------------- | -------------------------------------------------------------------- |
+| 初始化 | `init`                   | 写入或检查本地连接配置       | `opclash_cli init check`                                             |
+| 节点  | `nodes groups`           | 查看所有节点组           | `opclash_cli nodes groups`                                           |
+| 节点  | `nodes group`            | 查看指定组详情           | `opclash_cli nodes group --name HK`                                  |
+| 节点  | `nodes switch`           | 切换组内节点            | `opclash_cli nodes switch --group Apple --target DIRECT`             |
+| 节点  | `nodes speedtest`        | 调用 Clash 自带测速并排序  | `opclash_cli nodes speedtest --group HK --limit 10`                  |
+| 订阅  | `sub list`               | 查看订阅列表            | `opclash_cli sub list`                                               |
+| 订阅  | `sub add`                | 新增订阅源             | `opclash_cli sub add --name west2 --url https://example/sub`         |
+| 订阅  | `sub enable/disable`     | 控制订阅是否参与更新        | `opclash_cli sub enable --name west2`                                |
+| 订阅  | `sub rename`             | 调整订阅显示名           | `opclash_cli sub rename --name west2 --to west2-main`                |
+| 订阅  | `sub remove`             | 删除订阅并写入本地归档       | `opclash_cli sub remove --name west2`                                |
+| 订阅  | `sub update`             | 更新订阅              | `opclash_cli sub update --name west2`                                |
+| 订阅  | `sub switch`             | 切换远端配置文件          | `opclash_cli sub switch --config /etc/openclash/config/example.yaml` |
+| 服务  | `service status`         | 查看 OpenClash 服务状态 | `opclash_cli service status`                                         |
+| 服务  | `service reload/restart` | 重载或重启服务           | `opclash_cli service restart --yes`                                  |
+| 诊断  | `doctor`                 | 执行基础诊断与日志查看       | `opclash_cli doctor logs --limit 20`                                 |
+| 通用  | `version` / `completion` | 查看版本或生成补全脚本       | `opclash_cli completion bash`                                        |
+
 
 ## ⚙️ 配置
 

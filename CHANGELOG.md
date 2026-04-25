@@ -1,18 +1,33 @@
 # Changelog
 
-项目的重要变更记录在这里。
+## [v0.3.0] - 2026-04-25
 
-## [Unreleased]
+### ⚠️ 行为变更
+
+- **`init` 只写 Controller**：本地配置仅持久化 Clash Controller 的 URL 与 secret，不再保存跨机 LuCI / management 账号或 HTTPS 远程管理参数
+- **本机限定系统类命令**：订阅 CRUD、服务控制、`sub switch` 等依赖 OpenWrt UCI 与路由器路径的操作，须在路由器上以 **root** 执行且环境可用 `uci`；在非本机执行会得到明确错误指引
+- **远端保留 controller-only**：在 PC / CI 等环境仍可通过 Controller 使用 `nodes` 查看、测速与切换节点
 
 ### ✨ Added
 
-- 订阅管理补齐：`subscription remove`、`enable`、`disable`、`rename`
-- 删除订阅时自动写入本地归档：`~/.local/state/opclash_cli/subscription-archive.jsonl`
+- **子命令更名**：`subscription` 更名为 `sub`
+- **`sub usage`**：基于订阅响应头查询用量、配额与到期信息
+- **订阅管理补齐**：`sub remove`、`enable`、`disable`、`rename` 等
+- **删除订阅归档**：删除时写入 `~/.local/state/opclash_cli/subscription-archive.jsonl`
+
+### ♻️ Refactor
+
+- **适配层收敛**：OpenWrt 侧统一走本机 UCI / shell 后端；移除「通过 HTTPS 调用远端 LuCI JSON-RPC」的配置与实现，`luci_rpc` 大幅精简
+
+### 🐛 Fixed
+
+- **订阅更新**：修复订阅更新后防火墙规则丢失的问题
 
 ### 🛠 Improved
 
-- README 补充订阅启停语义、归档位置与常用示例
-- 本地操作日志覆盖新增的订阅修改类命令
+- `init check` 等指标对齐本机/远端模型（如 `router_local_ok`、`router_local_backend`）
+- README、命令帮助与 Agent CLI skill 等文档更新
+- 本地操作日志覆盖订阅修改类命令
 
 ## [v0.2.0] - 2026-04-22
 
