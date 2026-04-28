@@ -143,6 +143,33 @@ def test_doctor_logs_returns_local_operation_log(capsys, monkeypatch):
     assert payload["data"] == {"items": [{"command": "init check", "ok": True}], "limit": 5}
 
 
+def test_service_logs_accepts_tail_and_grep_options(capsys, monkeypatch):
+    monkeypatch.setattr(
+        "opclash_cli.main.service_logs",
+        lambda limit, grep: {
+            "tail": ["netflix line"],
+            "limit": limit,
+            "grep": grep,
+            "total": 10,
+            "matched": 1,
+        },
+    )
+
+    exit_code = main(["service", "logs", "--tail", "200", "--grep", "netflix"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["ok"] is True
+    assert payload["command"] == "service logs"
+    assert payload["data"] == {
+        "tail": ["netflix line"],
+        "limit": 200,
+        "grep": "netflix",
+        "total": 10,
+        "matched": 1,
+    }
+
+
 def test_nodes_speedtest_returns_sorted_results(capsys, monkeypatch):
     monkeypatch.setattr(
         "opclash_cli.main.nodes_speedtest",

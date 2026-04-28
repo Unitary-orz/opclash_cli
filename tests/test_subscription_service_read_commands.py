@@ -3,6 +3,7 @@ import json
 import pytest
 
 import opclash_cli.adapters.luci_rpc as luci_rpc_module
+import opclash_cli.commands.service as service_commands
 from opclash_cli.main import main
 from opclash_cli.commands.service import summarize_status
 import opclash_cli.commands.subscription as subscription_commands
@@ -171,3 +172,30 @@ def test_sub_current_suggests_running_locally_when_not_on_router(tmp_path, monke
     assert exit_code == 1
     assert payload["error"]["code"] == "LOCAL_ROUTER_REQUIRED"
     assert payload["error"]["details"]["recommended_mode"] == "router-local"
+
+
+def test_service_logs_filters_and_limits_lines(monkeypatch):
+    class FakeLogsLuciRpcClient:
+        def read_file(self, path: str) -> str:
+            assert path == "/tmp/openclash.log"
+            return "\n".join(
+                [
+                    "dns line",
+                    "Netflix first hit",
+                    "other line",
+                    "netflix second hit",
+                    "netflix third hit",
+                ]
+            )
+
+    monkeypatch.setattr(service_commands, "LuciRpcClient", lambda: FakeLogsLuciRpcClient())
+
+    result = service_commands.logs(limit=2, grep="netflix")
+
+    assert result == {
+        "tail": ["netflix second hit", "netflix third hit"],
+        "limit": 2,
+        "grep": "netflix",
+        "total": 5,
+        "matched": 3,
+    }

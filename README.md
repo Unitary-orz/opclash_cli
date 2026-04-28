@@ -114,7 +114,7 @@ opclash_cli sub switch \
 | 订阅  | `sub switch`             | 切换远端配置文件          | `opclash_cli sub switch --config /etc/openclash/config/example.yaml` |
 | 服务  | `service status`         | 查看 OpenClash 服务状态 | `opclash_cli service status`                                         |
 | 服务  | `service reload/restart` | 重载或重启服务           | `opclash_cli service restart --yes`                                  |
-| 服务  | `service logs`           | 查看 OpenClash 服务日志 | `opclash_cli service logs`                                           |
+| 服务  | `service logs`           | 查看 OpenClash 服务日志，可按关键字筛选 | `opclash_cli service logs --tail 200 --grep netflix`                 |
 | 诊断  | `doctor`                 | 执行基础诊断与日志查看       | `opclash_cli doctor logs --limit 20`                                 |
 | 通用  | `version` / `completion` | 查看版本或生成补全脚本       | `opclash_cli completion bash`                                        |
 
@@ -147,7 +147,7 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 - 支持同时启用多个订阅；OpenClash 当前生效的配置仍由 `sub current` / `sub switch` 决定
 - 订阅、服务、UCI、配置文件和日志等系统级命令必须在路由器本机执行
 - 非本机执行这些命令时，CLI 会直接提示切换到路由器本机
-- `service logs` 读取的是本机 `/tmp/openclash.log`
+- `service logs` 读取的是本机 `/tmp/openclash.log`，支持 `--tail` 控制返回行数，支持 `--grep` 做大小写不敏感过滤
 - `doctor logs` 读取的是本地 CLI 操作日志
 
 ## 🔐 安全与审计设计
@@ -184,6 +184,8 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 - 删除归档：`~/.local/state/opclash_cli/subscription-archive.jsonl`
 - 环境变量：`OPENCLASH_CLI_LOG`、`OPENCLASH_CLI_SUBSCRIPTION_ARCHIVE`
 - 查看日志：`opclash_cli doctor logs --limit 20`
+- OpenClash 服务日志：`opclash_cli service logs --tail 200 --grep netflix`
+- `service logs` 默认返回最后 `50` 行；`--grep` 会先过滤，再按 `--tail` 截取结果
 
 ## 📚 文档
 

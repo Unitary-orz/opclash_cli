@@ -186,7 +186,13 @@ def build_parser() -> argparse.ArgumentParser:
     _add_mutation_flags(reload_parser)
     restart_parser = service_subparsers.add_parser("restart", help="restart service", description="Restart service.")
     _add_mutation_flags(restart_parser)
-    service_subparsers.add_parser("logs", help="show remote openclash log", description="Show remote openclash log.")
+    service_logs_parser = service_subparsers.add_parser(
+        "logs",
+        help="show remote openclash log",
+        description="Show remote openclash log.",
+    )
+    service_logs_parser.add_argument("--tail", type=int, default=50, help="number of log lines to return after filtering")
+    service_logs_parser.add_argument("--grep", help="case-insensitive keyword filter")
 
     init_subparsers.add_parser(
         "check",
@@ -463,7 +469,7 @@ def _handle_service(args: argparse.Namespace) -> tuple[str, dict, object]:
         result = service_restart()
         return ("service restart", {"result": result["result"]}, result["audit"])
     if args.service_command == "logs":
-        return ("service logs", service_logs(), None)
+        return ("service logs", service_logs(args.tail, args.grep), None)
     raise CliError("INVALID_COMMAND", f"Unknown service command: {args.service_command}")
 
 

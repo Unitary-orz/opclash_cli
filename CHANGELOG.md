@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### 🛠 Improved
+
+- `service logs` 新增 `--tail` 与 `--grep`，可在路由器本机直接按关键字筛选 OpenClash 日志，并控制返回行数，便于排查 Netflix 等流媒体命中情况。
+
 ## [v0.3.1] - 2026-04-25
 
 ### 🧩 Skill
