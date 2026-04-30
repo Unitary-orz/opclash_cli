@@ -4,6 +4,7 @@ from typing import Callable
 
 from opclash_cli import __brand__, __brand_banner__, __version__
 from opclash_cli.commands.doctor import config as doctor_config
+from opclash_cli.commands.doctor import availability as doctor_availability
 from opclash_cli.commands.doctor import logs as doctor_logs
 from opclash_cli.commands.doctor import network as doctor_network
 from opclash_cli.commands.doctor import runtime as doctor_runtime
@@ -209,6 +210,16 @@ def build_parser() -> argparse.ArgumentParser:
     doctor_subparsers.add_parser("network", help="check local network basics", description="Check local network basics.")
     doctor_subparsers.add_parser("runtime", help="check runtime environment", description="Check runtime environment.")
     doctor_subparsers.add_parser("config", help="check local config file", description="Check local config file.")
+    doctor_availability_parser = doctor_subparsers.add_parser(
+        "availability",
+        help="inspect recent group and chain availability",
+        description="Inspect recent group and chain availability.",
+    )
+    doctor_availability_parser.add_argument("--since", default="30m", help="recent time window such as 30m, 2h, or 1d")
+    doctor_availability_parser.add_argument("--sample-size", type=int, default=3, help="number of alternate candidates to probe per group")
+    doctor_availability_parser.add_argument("--probe-url", default="https://www.gstatic.com/generate_204", help="probe URL")
+    doctor_availability_parser.add_argument("--probe-timeout", type=int, default=3000, help="per-probe timeout in milliseconds")
+    doctor_availability_parser.add_argument("--probe-attempts", type=int, default=2, help="probe attempts per candidate")
     doctor_logs_parser = doctor_subparsers.add_parser("logs", help="show local operation logs", description="Show local operation logs.")
     doctor_logs_parser.add_argument("--limit", type=int, default=20, help="number of log entries to show")
 
@@ -316,7 +327,7 @@ _opclash_cli() {
           _values 'service commands' status reload restart logs
           ;;
         doctor)
-          _values 'doctor commands' network runtime config logs
+          _values 'doctor commands' network runtime config availability logs
           ;;
         completion)
           _values 'shell' bash zsh
@@ -480,6 +491,12 @@ def _handle_doctor(args: argparse.Namespace) -> tuple[str, dict, object]:
         return ("doctor runtime", doctor_runtime(), None)
     if args.doctor_command == "config":
         return ("doctor config", doctor_config(), None)
+    if args.doctor_command == "availability":
+        return (
+            "doctor availability",
+            doctor_availability(args.since, args.sample_size, args.probe_url, args.probe_timeout, args.probe_attempts),
+            None,
+        )
     if args.doctor_command == "logs":
         return ("doctor logs", doctor_logs(args.limit), None)
     raise CliError("INVALID_COMMAND", f"Unknown doctor command: {args.doctor_command}")

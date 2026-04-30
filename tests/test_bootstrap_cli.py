@@ -143,6 +143,50 @@ def test_doctor_logs_returns_local_operation_log(capsys, monkeypatch):
     assert payload["data"] == {"items": [{"command": "init check", "ok": True}], "limit": 5}
 
 
+def test_doctor_availability_returns_agent_friendly_summary(capsys, monkeypatch):
+    monkeypatch.setattr(
+        "opclash_cli.main.doctor_availability",
+        lambda since, sample_size, probe_url, probe_timeout, probe_attempts: {
+            "summary": {"status": "switch-node"},
+            "since": since,
+            "sample_size": sample_size,
+            "probe_url": probe_url,
+            "probe_timeout_ms": probe_timeout,
+            "probe_attempts": probe_attempts,
+        },
+    )
+
+    exit_code = main(
+        [
+            "doctor",
+            "availability",
+            "--since",
+            "45m",
+            "--sample-size",
+            "5",
+            "--probe-url",
+            "https://www.gstatic.com/generate_204",
+            "--probe-timeout",
+            "2500",
+            "--probe-attempts",
+            "3",
+        ]
+    )
+
+    payload = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert payload["ok"] is True
+    assert payload["command"] == "doctor availability"
+    assert payload["data"] == {
+        "summary": {"status": "switch-node"},
+        "since": "45m",
+        "sample_size": 5,
+        "probe_url": "https://www.gstatic.com/generate_204",
+        "probe_timeout_ms": 2500,
+        "probe_attempts": 3,
+    }
+
+
 def test_service_logs_accepts_tail_and_grep_options(capsys, monkeypatch):
     monkeypatch.setattr(
         "opclash_cli.main.service_logs",

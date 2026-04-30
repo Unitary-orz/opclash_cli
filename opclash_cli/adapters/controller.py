@@ -40,13 +40,22 @@ class ControllerClient:
 
     def _request(self, method: str, path: str, **kwargs) -> requests.Response:
         try:
-            response = self._session.request(
-                method,
-                f"{self._base_url}{path}",
-                headers=self.headers,
-                timeout=10,
-                **kwargs,
-            )
+            request_method = getattr(self._session, "request", None)
+            if request_method is not None:
+                response = request_method(
+                    method,
+                    f"{self._base_url}{path}",
+                    headers=self.headers,
+                    timeout=10,
+                    **kwargs,
+                )
+            else:
+                response = getattr(self._session, method.lower())(
+                    f"{self._base_url}{path}",
+                    headers=self.headers,
+                    timeout=10,
+                    **kwargs,
+                )
             response.raise_for_status()
             return response
         except requests.RequestException as error:

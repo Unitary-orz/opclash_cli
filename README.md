@@ -116,6 +116,7 @@ opclash_cli sub switch \
 | 服务  | `service reload/restart` | 重载或重启服务           | `opclash_cli service restart --yes`                                  |
 | 服务  | `service logs`           | 查看 OpenClash 服务日志，可按关键字筛选 | `opclash_cli service logs --tail 200 --grep netflix`                 |
 | 诊断  | `doctor`                 | 执行基础诊断与日志查看       | `opclash_cli doctor logs --limit 20`                                 |
+| 诊断  | `doctor availability`    | 巡检最近时间窗口内的组与链路可用性 | `opclash_cli doctor availability --since 30m`                        |
 | 通用  | `version` / `completion` | 查看版本或生成补全脚本       | `opclash_cli completion bash`                                        |
 
 
@@ -148,6 +149,7 @@ export OPENCLASH_CLI_CONFIG=/path/to/config.toml
 - 订阅、服务、UCI、配置文件和日志等系统级命令必须在路由器本机执行
 - 非本机执行这些命令时，CLI 会直接提示切换到路由器本机
 - `service logs` 读取的是本机 `/tmp/openclash.log`，支持 `--tail` 控制返回行数，支持 `--grep` 做大小写不敏感过滤
+- `doctor availability` 会结合最近日志窗口与主动探测，输出组级、链路级状态，以及 `switch-node` / `fallback-subscription` 建议
 - `doctor logs` 读取的是本地 CLI 操作日志
 
 ## 🔐 安全与审计设计

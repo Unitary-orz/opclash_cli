@@ -91,6 +91,7 @@ opclash_cli nodes group --name <group_name>
 opclash_cli nodes speedtest --group <group_name> --limit 10
 opclash_cli service status
 opclash_cli service logs
+opclash_cli doctor availability --since 30m
 opclash_cli doctor network
 opclash_cli doctor config
 opclash_cli doctor logs --limit 20
@@ -140,4 +141,3 @@ Decision rules:
 - Assuming `service logs` accepts `--tail`; use `service logs` and inspect the returned tail
 - Treating a command as successful without checking JSON `ok`
 - Performing mutation without post-action verification
-
