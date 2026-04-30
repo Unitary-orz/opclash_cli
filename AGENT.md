@@ -11,7 +11,8 @@ The codebase is intentionally small and command-oriented:
 - `opclash_cli/local_config.py`: local config persistence and lookup
 - `opclash_cli/output.py`: structured CLI output helpers
 - `tests/`: command and behavior coverage
-- `skills/opclash_cli_skill/SKILL.md`: project-specific skill instructions
+- `skills/opclash_cli_skill/SKILL.md`: generic OpenClash CLI operation guidance
+- `skills/opclash-patrol/SKILL.md`: patrol and incident-handling guidance
 
 ## Working Rules
 
@@ -69,4 +70,4 @@ If the editable install is not needed, direct module execution is preferred duri
 The Codex skill `git-commit-governance` is installed in the environment at `/root/.codex/skills/git-commit-governance`.
 Use it when generating commit messages, judging commit scope, or defining project-specific commit rules.
 
-Repository-local commit rules are documented in `docs/git-commit提交说明.md` and `.claude/skill/opclash_cli-git-commit-rules/SKILL.md`.
+Repository-local commit rules are documented in `docs/git-commit提交说明.md` and `.agent/skill/opclash_cli-git-commit-rules/SKILL.md`.

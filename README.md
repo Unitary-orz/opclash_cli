@@ -61,8 +61,11 @@ python3 -m opclash_cli.main --help
 
 ```bash
 mkdir -p ~/.codex/skills
-cp -r ./skills/opclash_cli_skill ~/.codex/skills/
+cp -r ./skills/opclash_cli_skill ./skills/opclash-patrol ~/.codex/skills/
 ```
+
+- `opclash_cli_skill`：通用的 OpenClash CLI 操作说明
+- `opclash-patrol`：节点/订阅巡检与切换流程说明
 
 ## 🚀 快速开始
 
